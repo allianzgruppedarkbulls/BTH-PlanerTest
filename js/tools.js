@@ -26,9 +26,8 @@ function activateScaleTool() {
 }
 
 function activateMeasureTool() {
-    if (!pixelsPerMeter) { alert("⚠️ Bitte zuerst Maßstab eichen!"); return; }
     activeTool = 'measure';
     measurePoints = [];
     document.getElementById('btn-measure').classList.add('active-tool');
-    alert("Mess-Modus aktiv.");
+    document.getElementById('btn-scale').classList.remove('active-tool');
 }
