@@ -44,7 +44,35 @@ sidebar { width: 340px; background: var(--bth-card-bg); border-right: 1px solid 
 .step-next-btn:hover { background: rgba(56, 189, 248, 0.3); }
 
 .viewport { flex: 1; background: #050b14; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-#map-canvas { background-color: #08101e; cursor: crosshair; }
+#map-canvas {
+    background-color: #08101e;
+    cursor: crosshair; /* Feinzel-Fadenkreuz für maximale Präzision */
+}
+
+.scale-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    color: var(--bth-cyan);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.scale-bar-line {
+    width: 100px;
+    height: 4px;
+    border-left: 2px solid var(--bth-cyan);
+    border-right: 2px solid var(--bth-cyan);
+    border-bottom: 2px solid var(--bth-cyan);
+    margin: 0 auto;
+}
 
 .hud-controls { position: absolute; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 16px; display: flex; gap: 15px; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 10; }
 .hud-btn { background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
