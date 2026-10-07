@@ -4,7 +4,6 @@ function centerCanvas() {
     redrawCanvas();
 }
 
-
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -90,5 +89,22 @@ function redrawCanvas() {
     }
 
     ctx.restore();
+
+    // HUD-Anpassungen & Visuelle Maßstabs-Legende (Logik in JS)
     document.getElementById('zoom-indicator').innerText = Math.round(zoom * 100) + '%';
+
+    let barMeters = 1;
+    if (zoom < 0.2) barMeters = 50;
+    else if (zoom < 0.5) barMeters = 20;
+    else if (zoom < 1.0) barMeters = 10;
+    else if (zoom < 2.5) barMeters = 5;
+    else barMeters = 1;
+
+    let barPixelWidth = barMeters * pixelsPerMeter * zoom;
+    const legendBar = document.getElementById('legend-bar');
+    const legendText = document.getElementById('legend-text');
+    if (legendBar && legendText) {
+        legendBar.style.width = barPixelWidth + 'px';
+        legendText.innerText = `${barMeters} Meter`;
+    }
 }
