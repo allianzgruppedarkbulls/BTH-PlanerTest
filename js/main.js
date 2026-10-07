@@ -8,6 +8,7 @@ viewport.addEventListener('mousedown', (e) => {
     }
 });
 
+
 window.addEventListener('mousemove', (e) => {
     if (isDragging) {
         panX = e.clientX - startX;
