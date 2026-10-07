@@ -7,6 +7,7 @@ function startDrawing(type) {
     alert("Zeichnen aktiv: Linksklick für kantige Ecken, Rechtsklick für gerundete Kurven.");
 }
 
+
 function undoLastPoint() {
     if (currentDrawingPoints.length > 0) {
         currentDrawingPoints.pop();
