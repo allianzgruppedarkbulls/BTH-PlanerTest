@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTH PLANWERK - Testumgebung</title>
+    <title>BTH PLANWERK - Testumgebung mit Zwei-Wege-Messung</title>
     <style>
         :root {
             --bth-blue-dark: #050b14;
@@ -85,9 +85,10 @@
                 <span id="step1-status" style="color: var(--accent-yellow); font-size: 0.7rem;">Aktiv</span>
             </div>
             <div class="tool-group" id="group-step1">
-                <button class="tool-btn" onclick="triggerFileUpload()">🖼️ Bild / Plan hochladen</button>
-                <button class="tool-btn" id="btn-scale" onclick="activateScaleTool()">📏 Bild-Maßstab eichen</button>
-                <button class="tool-btn" style="border-color: var(--accent-green);" onclick="setWorkflowStep(2)">📐 Ohne Bild planen (Raster 1m×1m)</button>
+                <button class="tool-btn" onclick="triggerFileUpload()">🖼️ Plan / Bild hochladen</button>
+                <button class="tool-btn" id="btn-scale" onclick="activateScaleTool()">📏 1. Globalen Maßstab eichen</button>
+                <button class="tool-btn" id="btn-measure" onclick="activateMeasureTool()">🔍 2. Freie Kontrollmessung</button>
+                <button class="tool-btn" style="border-color: var(--accent-green); margin-top: 6px;" onclick="setWorkflowStep(2)">➔ Weiter zu Schritt 2</button>
             </div>
 
             <!-- SCHRITT 2 -->
@@ -96,13 +97,10 @@
                 <span id="step2-status" style="color: var(--text-muted); font-size: 0.7rem;">🔒 Gesperrt</span>
             </div>
             <div class="tool-group" id="group-step2">
-                <button class="tool-btn locked" id="btn-house" onclick="handleButtonClick('house')">🏠 Gebäude / Haus einzeichnen</button>
-                <button class="tool-btn locked" id="btn-grass" onclick="handleButtonClick('grass')">🌱 Rasenfläche einzeichnen</button>
-                <button class="tool-btn locked" id="btn-bed" onclick="handleButtonClick('bed')">🌺 Beetfläche einzeichnen</button>
-                <button class="tool-btn locked" id="btn-startwater" onclick="openModal('modal-startwater')">🚰 Start-Wasseranschluss & Gewinde</button>
-                <button class="tool-btn locked" id="btn-altwater" onclick="showGenericModal('⛲ Alternative Quellen', 'Tragen Sie hier Zisternen oder Strom ein.')">⛲ Alternative Quellen & Strom</button>
-                <button class="tool-btn locked" id="btn-height" onclick="showGenericModal('⛰️ Nivellierung', 'Virtuelle Schnur zur Höhendefinition.')">⛰️ Virtuelle Schnur (Nivellierung)</button>
-                <button class="tool-btn locked" id="btn-waterest" onclick="showGenericModal('💧 Eimertest', 'Wassermenge und Druck erfassen.')">💧 Wasserquelle (Eimertest)</button>
+                <button class="tool-btn locked" onclick="showGenericModal('Gebäude', 'Umrisse einzeichnen')">🏠 Gebäude / Haus einzeichnen</button>
+                <button class="tool-btn locked" onclick="showGenericModal('Rasen', 'Rasenflächen einzeichnen')">🌱 Rasenfläche einzeichnen</button>
+                <button class="tool-btn locked" onclick="showGenericModal('Beet', 'Beetflächen einzeichnen')">🌺 Beetfläche einzeichnen</button>
+                <button class="tool-btn locked" onclick="openModal('modal-startwater')">🚰 Start-Wasseranschluss & Gewinde</button>
                 <button class="step-next-btn" id="btn-goto-step3" style="display: none;" onclick="setWorkflowStep(3)">Weiter zu 3. Profi-Bereich ➔</button>
             </div>
 
@@ -113,11 +111,8 @@
             </div>
             <div class="tool-group" id="group-step3">
                 <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_sprinkler')">🎯 Regner einzeichnen (MP Rotator)</button>
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_valve')">🎛️ Steuerung & Ventile einzeichnen</button>
                 <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_pipe')">🔌 Rohrleitung einzeichnen</button>
                 <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_material')">🔩 Kleinmaterial & Abzweiger</button>
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_hydraulics')">⚡ KI-Hydraulik & Druckverlust-Sim</button>
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_demorun')">🚀 Automatischer Demolauf (3D)</button>
             </div>
 
             <button class="step-next-btn" style="margin-top: auto; border-color: var(--accent-green); color: var(--accent-green);" onclick="setWorkflowStep(2)">
@@ -129,8 +124,8 @@
             <canvas id="map-canvas" width="1000" height="700"></canvas>
             <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
             <div class="hud-controls">
-                <span>Zoom: <strong id="zoom-indicator">100%</strong></span>
                 <span>Maßstab: <strong id="scale-indicator">Nicht geeicht</strong></span>
+                <span>Letzte Messung: <strong id="measure-result">-</strong></span>
                 <span>Modus: <strong id="mode-indicator">Privatkunde</strong></span>
             </div>
         </div>
@@ -144,25 +139,9 @@
             <div class="input-group">
                 <label>Gewindegröße</label>
                 <select id="thread-size">
-                    <option value="0.5">1/2 Zoll (0.5")</option>
                     <option value="0.75" selected>3/4 Zoll (0.75") - Standard</option>
                     <option value="1.0">1 Zoll (1.0")</option>
-                    <option value="unknown">Unbekannt / Bitte prüfen</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Gewindeart</label>
-                <select id="thread-type">
-                    <option value="ig">Innengewinde (IG)</option>
-                    <option value="ag">Außengewinde (AG)</option>
-                    <option value="none">Kein Gewinde / Rohrstutzen</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Material</label>
-                <select id="thread-material">
-                    <option value="plastic">Plastik / PE</option>
-                    <option value="brass" selected>Messing / Metall</option>
+                    <option value="0.5">1/2 Zoll (0.5")</option>
                 </select>
             </div>
             <div class="button-row">
@@ -184,178 +163,26 @@
     </div>
 
     <script>
-        // --- CANVAS & APP STATE ---
         const canvas = document.getElementById('map-canvas');
         const ctx = canvas.getContext('2d');
 
         let currentStep = 1;
         let isAdmin = false;
         let uploadedImage = null;
-        let activeTool = null;
+        let activeTool = null; // 'scale' oder 'measure'
 
-        // Skalierungs- & Eichvariablen
+        // Eich- & Messvariablen
         let scalePoints = [];
         let pixelsPerMeter = null;
+
+        let measurePoints = [];
+        let lastMeasuredDistance = null;
 
         function redrawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Hintergrundbild zeichnen falls vorhanden
+            // 1. Hintergrundbild zeichnen
             if (uploadedImage) {
                 ctx.drawImage(uploadedImage, 50, 50, 800, 500);
             } else {
-                // Sanftes Raster 1m x 1m zeichnen
                 ctx.strokeStyle = '#1e293b';
-                ctx.lineWidth = 1;
-                const gridSize = 40;
-                for (let x = 0; x < canvas.width; x += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-                }
-                for (let y = 0; y < canvas.height; y += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-                }
-                
-                ctx.fillStyle = '#475569';
-                ctx.font = '14px Segoe UI';
-                ctx.fillText("Kein Grundriss geladen – 1m Raster aktiv", 30, 40);
-            }
-
-            // 2. Eichpunkte zeichnen
-            if (scalePoints.length > 0) {
-                ctx.fillStyle = varColor('--accent-yellow');
-                scalePoints.forEach((pt, idx) => {
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '12px sans-serif';
-                    ctx.fillText(`Punkt ${idx + 1}`, pt.x + 10, pt.y - 5);
-                });
-                if (scalePoints.length === 2) {
-                    ctx.strokeStyle = varColor('--accent-yellow');
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(scalePoints[0].x, scalePoints[0].y);
-                    ctx.lineTo(scalePoints[1].x, scalePoints[1].y);
-                    ctx.stroke();
-                }
-            }
-        }
-
-        function varColor(name) {
-            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        }
-
-        // --- BILDUPLOAD ---
-        function triggerFileUpload() {
-            document.getElementById('file-input').click();
-        }
-
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        uploadedImage = img;
-                        redrawCanvas();
-                        setWorkflowStep(2);
-                    }
-                    img.src = event.target.result;
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // --- MAßSTAB EICHEN ---
-        function activateScaleTool() {
-            activeTool = 'scale';
-            scalePoints = [];
-            alert("Maßstab eichen: Bitte klicke nacheinander auf zwei Punkte mit bekanntem Abstand im Plan.");
-            document.getElementById('btn-scale').classList.add('active-tool');
-        }
-
-        canvas.addEventListener('click', function(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if (activeTool === 'scale') {
-                scalePoints.push({x, y});
-                redrawCanvas();
-                if (scalePoints.length === 2) {
-                    const pixelDist = Math.hypot(scalePoints[1].x - scalePoints[0].x, scalePoints[1].y - scalePoints[0].y);
-                    const realMeters = prompt("Geben Sie den realen Abstand zwischen diesen beiden Punkten in Metern ein (z.B. 10):", "10");
-                    if (realMeters && !isNaN(realMeters)) {
-                        pixelsPerMeter = pixelDist / parseFloat(realMeters);
-                        document.getElementById('scale-indicator').innerText = `${pixelsPerMeter.toFixed(1)} px/m`;
-                        alert(`Maßstab erfolgreich geeicht! (${pixelsPerMeter.toFixed(1)} Pixel pro Meter)`);
-                    }
-                    activeTool = null;
-                    document.getElementById('btn-scale').classList.remove('active-tool');
-                    setWorkflowStep(2);
-                }
-            }
-        });
-
-        // --- WORKFLOW & ROUTING ---
-        function setWorkflowStep(step) {
-            currentStep = step;
-            document.getElementById('step1-status').innerText = step === 1 ? 'Aktiv' : '✔ Erledigt';
-            document.getElementById('step2-status').innerText = step === 2 ? 'Aktiv' : (step > 2 ? '✔ Erledigt' : '🔒 Gesperrt');
-            
-            toggleGroupLock('group-step1', step !== 1);
-            toggleGroupLock('group-step2', step !== 2);
-            toggleGroupLock('group-step3', !isAdmin || step !== 3);
-            
-            document.getElementById('btn-goto-step3').style.display = step === 2 ? 'block' : 'none';
-        }
-
-        function toggleGroupLock(groupId, lock) {
-            const group = document.getElementById(groupId);
-            group.querySelectorAll('.tool-btn').forEach(btn => {
-                if (groupId === 'group-step3' && !isAdmin) {
-                    btn.classList.add('locked', 'pro-locked');
-                } else {
-                    lock ? btn.classList.add('locked') : btn.classList.remove('locked');
-                }
-            });
-        }
-
-        function toggleAdminMode() {
-            isAdmin = !isAdmin;
-            document.getElementById('header-badge').innerText = isAdmin ? "Profi-Modus (Admin)" : "Privatkunden-Modus";
-            document.getElementById('mode-indicator').innerText = isAdmin ? "Profi (Admin)" : "Privatkunde";
-            document.getElementById('step3-status').innerText = isAdmin ? "Aktiv (Freigeschaltet)" : "🔒 GESPERRT";
-            document.getElementById('step3-status').style.color = isAdmin ? "var(--accent-green)" : "var(--accent-red)";
-            setWorkflowStep(currentStep);
-            alert(isAdmin ? "Admin-Modus aktiv: Profi-Bereich freigeschaltet!" : "Admin-Modus aus.");
-        }
-
-        function handleButtonClick(action) {
-            if (action.startsWith('pro_')) {
-                if (!isAdmin) { alert("🔒 Nur für Administratoren!"); return; }
-                showGenericModal("Profi-Modus aktiv", `Ausführung von: ${action}`);
-            } else {
-                showGenericModal("Funktion", `Ausgewählt: ${action}`);
-            }
-        }
-
-        function showGenericModal(title, text) {
-            document.getElementById('generic-modal-title').innerText = title;
-            document.getElementById('generic-modal-desc').innerText = text;
-            document.getElementById('modal-generic').classList.remove('hidden');
-        }
-
-        function closeAllModals() {
-            document.getElementById('modal-startwater').classList.add('hidden');
-            document.getElementById('modal-generic').classList.add('hidden');
-        }
-
-        // Initialisierung
-        setWorkflowStep(1);
-        redrawCanvas();
-    </script>
-</body>
-</html>
