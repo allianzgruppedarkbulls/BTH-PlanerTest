@@ -17,6 +17,7 @@ function handleImageUpload(e) {
     }
 }
 
+
 function activateScaleTool() {
     activeTool = 'scale';
     scalePoints = [];
