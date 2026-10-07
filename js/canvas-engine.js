@@ -35,43 +35,8 @@ function redrawCanvas() {
         ctx.beginPath(); ctx.moveTo(0, startCoord); ctx.lineTo(0, endCoord); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(startCoord, 0); ctx.lineTo(endCoord, 0); ctx.stroke();
     }
-// In redrawCanvas() einfügen (unter den Formen):
 
-    // Wasserquellen und Zisternen zeichnen
-    waterSources.forEach(source => {
-        ctx.save();
-        ctx.translate(source.x, source.y);
-
-        // Äußerer Kreis / Icon-Hintergrund
-        ctx.beginPath();
-        ctx.arc(0, 0, 16 / zoom, 0, Math.PI * 2);
-        ctx.fillStyle = source.sourceType === 'cistern' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.4)';
-        ctx.fill();
-        ctx.lineWidth = 2 / zoom;
-        ctx.strokeStyle = source.sourceType === 'cistern' ? '#38bdf8' : '#0284c7';
-        ctx.stroke();
-
-        // Symbol / Text
-        ctx.font = `${12 / zoom}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(source.sourceType === 'cistern' ? '💧Z' : '🚰', 0, 0);
-
-        // Status-Badge direkt am Objekt (z.B. Warnung wenn Eimertest fehlt)
-        if (!source.flowTestDone) {
-            ctx.beginPath();
-            ctx.arc(10 / zoom, -10 / zoom, 5 / zoom, 0, Math.PI * 2);
-            ctx.fillStyle = '#f59e0b'; // Gelber Punkt für ausstehenden Test
-            ctx.fill();
-            ctx.strokeStyle = '#050b14';
-            ctx.lineWidth = 1.5 / zoom;
-            ctx.stroke();
-        }
-
-        ctx.restore();
-    });
-    // Fertige Formen zeichnen
+    // 1. Fertige Formen zeichnen (inklusive sichtbarer Eckpunkte zur Bearbeitung)
     shapes.forEach(shape => {
         ctx.beginPath();
         if (shape.points.length > 0) {
@@ -93,10 +58,58 @@ function redrawCanvas() {
             ctx.fill();
             ctx.lineWidth = 2 / zoom;
             ctx.stroke();
+
+            // Eckpunkte der fertigen Form sichtbar machen
+            shape.points.forEach(pt => {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2 / zoom;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 5 / zoom, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
         }
     });
 
-    // Aktiver Zeichenpfad
+    // 2. Wasserquellen und Zisternen zeichnen
+    if (typeof waterSources !== 'undefined') {
+        waterSources.forEach(source => {
+            ctx.save();
+            ctx.translate(source.x, source.y);
+
+            // Äußerer Kreis / Icon-Hintergrund
+            ctx.beginPath();
+            ctx.arc(0, 0, 16 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = source.sourceType === 'cistern' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.4)';
+            ctx.fill();
+            ctx.lineWidth = 2 / zoom;
+            ctx.strokeStyle = source.sourceType === 'cistern' ? '#38bdf8' : '#0284c7';
+            ctx.stroke();
+
+            // Symbol / Text
+            ctx.font = `${12 / zoom}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(source.sourceType === 'cistern' ? '💧Z' : '🚰', 0, 0);
+
+            // Status-Badge direkt am Objekt (Warnung, wenn Eimertest fehlt)
+            if (!source.flowTestDone) {
+                ctx.beginPath();
+                ctx.arc(10 / zoom, -10 / zoom, 5 / zoom, 0, Math.PI * 2);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fill();
+                ctx.strokeStyle = '#050b14';
+                ctx.lineWidth = 1.5 / zoom;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        });
+    }
+
+    // 3. Aktiver Zeichenpfad
     if (currentDrawingPoints.length > 0) {
         ctx.beginPath();
         ctx.moveTo(currentDrawingPoints[0].x, currentDrawingPoints[0].y);
@@ -125,7 +138,7 @@ function redrawCanvas() {
 
     ctx.restore();
 
-    // HUD-Anpassungen & Visuelle Maßstabs-Legende (Logik in JS)
+    // HUD-Anpassungen & Visuelle Maßstabs-Legende
     document.getElementById('zoom-indicator').innerText = Math.round(zoom * 100) + '%';
 
     let barMeters = 1;
