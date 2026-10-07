@@ -8,7 +8,6 @@ viewport.addEventListener('mousedown', (e) => {
     }
 });
 
-
 window.addEventListener('mousemove', (e) => {
     if (isDragging) {
         panX = e.clientX - startX;
@@ -42,6 +41,22 @@ canvas.addEventListener('mousedown', function(e) {
     const x = (e.clientX - rect.left - panX) / zoom;
     const y = (e.clientY - rect.top - panY) / zoom;
 
+    // 1. Prüfen, ob auf eine bereits bestehende Wasserquelle geklickt wurde (zum Bearbeiten / Eimertest nachragen)
+    let clickedWater = typeof waterSources !== 'undefined' ? waterSources.find(s => Math.hypot(s.x - x, s.y - y) < 20 / zoom) : null;
+    if (clickedWater) {
+        openWaterModal(clickedWater.id);
+        return;
+    }
+
+    // 2. Wenn das Wasserquellen-Werkzeug aktiv ist -> neuen Punkt setzen
+    if (activeTool === 'water-source') {
+        if (typeof placeWaterSource === 'function') {
+            placeWaterSource(x, y);
+        }
+        return;
+    }
+
+    // 3. Zeichen-Modus für Gebäude, Rasen, Beete
     if (activeTool && activeTool.startsWith('draw-')) {
         const isRightClick = (e.button === 2);
         let inserted = false;
@@ -75,6 +90,7 @@ canvas.addEventListener('mousedown', function(e) {
         return;
     }
 
+    // 4. Maßstab eichen
     if (activeTool === 'scale') {
         scalePoints.push({x, y});
         redrawCanvas();
@@ -90,7 +106,9 @@ canvas.addEventListener('mousedown', function(e) {
             document.getElementById('btn-scale').classList.remove('active-tool');
             redrawCanvas();
         }
-    } else if (activeTool === 'measure') {
+    } 
+    // 5. Freie Kontrollmessung
+    else if (activeTool === 'measure') {
         measurePoints.push({x, y});
         redrawCanvas();
         if (measurePoints.length === 2) {
