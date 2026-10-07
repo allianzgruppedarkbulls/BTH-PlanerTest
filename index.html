@@ -4,64 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTH PLANWERK - ProHydro CAD (Testumgebung)</title>
-    <style>
-        :root {
-            --bth-blue-dark: #050b14;
-            --bth-card-bg: #0f172a;
-            --bth-cyan: #38bdf8;
-            --bth-blue-primary: #0284c7;
-            --border-color: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-yellow: #f59e0b;
-            --accent-purple: #a855f7;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bth-blue-dark); color: var(--text-main); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; }
-        
-        header { height: 60px; background: #09101d; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 24px; z-index: 10; }
-        .logo-container h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: 2px; background: linear-gradient(135deg, #ffffff 30%, var(--bth-cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .user-info { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 15px; }
-        .badge-mode { background: rgba(56, 189, 248, 0.15); color: var(--bth-cyan); border: 1px solid var(--bth-cyan); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
-
-        .app-container { display: flex; flex: 1; height: calc(100vh - 60px); position: relative; }
-        sidebar { width: 340px; background: var(--bth-card-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px; padding: 16px; overflow-y: auto; z-index: 5; }
-
-        .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--bth-cyan); font-weight: 800; margin-top: 8px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
-        .tool-group { display: flex; flex-direction: column; gap: 6px; }
-
-        .tool-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #050b14; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-main); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: left; }
-        .tool-btn:hover:not(.locked) { border-color: var(--bth-cyan); background: rgba(2, 132, 199, 0.1); }
-        .tool-btn.active-tool { border-color: var(--accent-green); background: rgba(16, 185, 129, 0.2); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-        .tool-btn.locked { opacity: 0.4; cursor: not-allowed; border-color: rgba(255, 255, 255, 0.05); }
-        .tool-btn.locked::after { content: '🔒'; margin-left: auto; font-size: 0.75rem; }
-        .tool-btn.pro-locked { border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.05); }
-
-        .step-next-btn { padding: 8px; background: rgba(56, 189, 248, 0.15); border: 1px dashed var(--bth-cyan); color: var(--bth-cyan); border-radius: 8px; font-size: 0.78rem; font-weight: bold; cursor: pointer; text-align: center; margin-top: 4px; }
-        .step-next-btn:hover { background: rgba(56, 189, 248, 0.3); }
-
-        .viewport { flex: 1; background: #050b14; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        #map-canvas { background-color: #08101e; cursor: grab; }
-        #map-canvas:active { cursor: grabbing; }
-
-        .hud-controls { position: absolute; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 16px; display: flex; gap: 15px; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 10; }
-        .hud-btn { background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(5, 11, 20, 0.88); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 100; opacity: 1; transition: opacity 0.3s ease; }
-        .modal-overlay.hidden { opacity: 0; pointer-events: none; }
-        .modal-card { background: var(--bth-card-bg); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 20px; width: 100%; max-width: 620px; padding: 30px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); }
-        .modal-card h2 { font-size: 1.3rem; margin-bottom: 10px; color: #fff; }
-        .modal-card p { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px; }
-        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-        .input-group label { font-size: 0.8rem; color: var(--text-main); }
-        .input-group select { padding: 10px 12px; background: #050b14; border: 1px solid var(--border-color); border-radius: 8px; color: #fff; outline: none; font-size: 0.85rem; }
-        .button-row { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-submit { flex: 2; padding: 12px; background: var(--bth-blue-primary); border: none; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; }
-        .btn-back { flex: 1; padding: 12px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-muted); font-weight: bold; cursor: pointer; text-align: center; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -95,9 +38,20 @@
                 <span id="step2-status" style="color: var(--text-muted); font-size: 0.7rem;">🔒 Gesperrt</span>
             </div>
             <div class="tool-group" id="group-step2">
-                <button class="tool-btn locked" onclick="showGenericModal('Gebäude', 'Umrisse des Hauses einzeichnen')">🏠 Gebäude / Haus einzeichnen</button>
-                <button class="tool-btn locked" onclick="showGenericModal('Rasen', 'Rasenflächen einzeichnen')">🌱 Rasenfläche einzeichnen</button>
-                <button class="tool-btn locked" onclick="showGenericModal('Beet', 'Beetflächen einzeichnen')">🌺 Beetfläche einzeichnen</button>
+                <button class="tool-btn locked" onclick="startDrawing('building')">🏠 Gebäude / Haus einzeichnen</button>
+                <button class="tool-btn locked" onclick="startDrawing('lawn')">🌱 Rasenfläche einzeichnen</button>
+                <button class="tool-btn locked" onclick="startDrawing('bed')">🌺 Beetfläche einzeichnen</button>
+                
+                <!-- Dynamische Toolbar während des Zeichnens -->
+                <div id="drawing-toolbar" class="drawing-toolbar">
+                    <span id="drawing-mode-info" style="font-size: 0.75rem; color: var(--accent-green); font-weight: bold;">Zeichnen aktiv...</span>
+                    <div class="drawing-btn-row">
+                        <button class="sub-btn" onclick="undoLastPoint()">↩ Zurück</button>
+                        <button class="sub-btn" style="color: var(--accent-green);" onclick="finishCurrentShape()">✔ Fertig</button>
+                        <button class="sub-btn danger" onclick="cancelDrawing()">✕ Abbruch</button>
+                    </div>
+                </div>
+
                 <button class="tool-btn locked" onclick="openModal('modal-startwater')">🚰 Start-Wasseranschluss & Gewinde</button>
                 <button class="tool-btn locked" onclick="showGenericModal('Alternative Quellen', 'Zisternen & Strom einzeichnen')">⛲ Alternative Quellen & Strom</button>
                 <button class="tool-btn locked" onclick="showGenericModal('Nivellierung', 'Virtuelle Schnur definieren')">⛰️ Virtuelle Schnur (Nivellierung)</button>
@@ -170,269 +124,11 @@
         </div>
     </div>
 
-    <script>
-        const canvas = document.getElementById('map-canvas');
-        const ctx = canvas.getContext('2d');
-        const viewport = document.getElementById('viewport-div');
-
-        let currentStep = 1;
-        let isAdmin = false;
-        let uploadedImage = null;
-        let activeTool = null; // 'scale' oder 'measure'
-
-        let zoom = 1.0;
-        let panX = 0;
-        let panY = 0;
-        let isDragging = false;
-        let startX = 0;
-        let startY = 0;
-
-        let scalePoints = [];
-        let pixelsPerMeter = 40; // Standard: 40px = 1 Meter
-        let measurePoints = [];
-
-        function centerCanvas() {
-            panX = (viewport.clientWidth - canvas.width) / 2;
-            panY = (viewport.clientHeight - canvas.height) / 2;
-            redrawCanvas();
-        }
-
-        function redrawCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ctx.save();
-            ctx.translate(panX, panY);
-            ctx.scale(zoom, zoom);
-
-            // 1. Hintergrund: Entweder hochgeladenes Bild oder adaptives Raster
-            if (uploadedImage) {
-                // Bild zentriert oder am Ursprung zeichnen
-                ctx.drawImage(uploadedImage, 0, 0);
-            } else {
-                // Adaptives Raster (skaliert automatisch je nach Zoomstufe)
-                let gridMeters = 1;
-                if (zoom < 0.3) { gridMeters = 20; }
-                else if (zoom < 0.6) { gridMeters = 10; }
-                else if (zoom < 1.2) { gridMeters = 5; }
-                else { gridMeters = 1; }
-
-                let stepPx = pixelsPerMeter * gridMeters;
-
-                ctx.strokeStyle = '#1e293b';
-                ctx.lineWidth = 1.2 / zoom;
-
-                const startCoord = -15000;
-                const endCoord = 21000;
-
-                for (let x = startCoord; x <= endCoord; x += stepPx) {
-                    ctx.beginPath(); ctx.moveTo(x, startCoord); ctx.lineTo(x, endCoord); ctx.stroke();
-                }
-                for (let y = startCoord; y <= endCoord; y += stepPx) {
-                    ctx.beginPath(); ctx.moveTo(startCoord, y); ctx.lineTo(endCoord, y); ctx.stroke();
-                }
-
-                // Nullpunkt-Achsen
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 2 / zoom;
-                ctx.beginPath(); ctx.moveTo(0, startCoord); ctx.lineTo(0, endCoord); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(startCoord, 0); ctx.lineTo(endCoord, 0); ctx.stroke();
-
-                ctx.fillStyle = '#38bdf8';
-                ctx.font = `${14 / zoom}px Segoe UI`;
-                ctx.fillText(`Virtuelle Welt – Raster: ${gridMeters}m-Abstand (Verschieben per Drag, Zoom per Mausrad)`, 100, 100);
-            }
-
-            // 2. Eich-Punkte & Linie (Gelb)
-            if (scalePoints.length > 0) {
-                ctx.fillStyle = '#f59e0b';
-                scalePoints.forEach((pt) => {
-                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 8 / zoom, 0, Math.PI * 2); ctx.fill();
-                });
-                if (scalePoints.length === 2) {
-                    ctx.strokeStyle = '#f59e0b';
-                    ctx.lineWidth = 3 / zoom;
-                    ctx.beginPath(); ctx.moveTo(scalePoints[0].x, scalePoints[0].y); ctx.lineTo(scalePoints[1].x, scalePoints[1].y); ctx.stroke();
-                }
-            }
-
-            // 3. Kontrollmess-Punkte & Linie (Cyan)
-            if (measurePoints.length > 0) {
-                ctx.fillStyle = '#38bdf8';
-                measurePoints.forEach((pt) => {
-                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 7 / zoom, 0, Math.PI * 2); ctx.fill();
-                });
-                if (measurePoints.length === 2) {
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 3 / zoom;
-                    ctx.beginPath(); ctx.moveTo(measurePoints[0].x, measurePoints[0].y); ctx.lineTo(measurePoints[1].x, measurePoints[1].y); ctx.stroke();
-                }
-            }
-
-            ctx.restore();
-            document.getElementById('zoom-indicator').innerText = Math.round(zoom * 100) + '%';
-        }
-
-        // --- MOUSE & ZOOM STEUERUNG (PAN & ZOOM) ---
-        viewport.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !activeTool) {
-                isDragging = true;
-                startX = e.clientX - panX;
-                startY = e.clientY - panY;
-            }
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                panX = e.clientX - startX;
-                panY = e.clientY - startY;
-                redrawCanvas();
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        viewport.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const zoomIntensity = 0.1;
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            const prevZoom = zoom;
-            if (e.deltaY < 0) {
-                zoom *= (1 + zoomIntensity);
-            } else {
-                zoom /= (1 + zoomIntensity);
-            }
-
-            zoom = Math.max(0.01, Math.min(30.0, zoom));
-
-            panX = mouseX - (mouseX - panX) * (zoom / prevZoom);
-            panY = mouseY - (mouseY - panY) * (zoom / prevZoom);
-
-            redrawCanvas();
-        }, { passive: false });
-
-        // --- BILDUPLOAD & TOOLS ---
-        function triggerFileUpload() {
-            document.getElementById('file-input').click();
-        }
-
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        uploadedImage = img;
-                        redrawCanvas();
-                        alert("Plan erfolgreich geladen! Nutzen Sie jetzt '1. Globalen Maßstab eichen'.");
-                    }
-                    img.src = event.target.result;
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function activateScaleTool() {
-            activeTool = 'scale';
-            scalePoints = [];
-            document.getElementById('btn-scale').classList.add('active-tool');
-            document.getElementById('btn-measure').classList.remove('active-tool');
-            alert("Eich-Modus aktiv: Klicken Sie auf zwei Punkte mit bekannter Länge.");
-        }
-
-        function activateMeasureTool() {
-            if (!pixelsPerMeter) {
-                alert("⚠️ Bitte zuerst den globalen Maßstab (Schritt 1) eichen!");
-                return;
-            }
-            activeTool = 'measure';
-            measurePoints = [];
-            document.getElementById('btn-measure').classList.add('active-tool');
-            document.getElementById('btn-scale').classList.remove('active-tool');
-            alert("Kontrollmess-Modus aktiv: Klicken Sie zwei Punkte an.");
-        }
-
-        canvas.addEventListener('click', function(e) {
-            if (isDragging) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left - panX) / zoom;
-            const y = (e.clientY - rect.top - panY) / zoom;
-
-            if (activeTool === 'scale') {
-                scalePoints.push({x, y});
-                redrawCanvas();
-                if (scalePoints.length === 2) {
-                    const pixelDist = Math.hypot(scalePoints[1].x - scalePoints[0].x, scalePoints[1].y - scalePoints[0].y);
-                    const realMeters = prompt("Realer Abstand in Metern (z.B. 10):", "10");
-                    if (realMeters && !isNaN(realMeters) && realMeters > 0) {
-                        pixelsPerMeter = pixelDist / parseFloat(realMeters);
-                        document.getElementById('scale-indicator').innerText = `${pixelsPerMeter.toFixed(1)} px/m`;
-                        alert(`Globaler Maßstab geeicht: ${pixelsPerMeter.toFixed(1)} Pixel/Meter.`);
-                    }
-                    activeTool = null;
-                    document.getElementById('btn-scale').classList.remove('active-tool');
-                    redrawCanvas();
-                }
-            } else if (activeTool === 'measure') {
-                measurePoints.push({x, y});
-                redrawCanvas();
-                if (measurePoints.length === 2) {
-                    const pixelDist = Math.hypot(measurePoints[1].x - measurePoints[0].x, measurePoints[1].y - measurePoints[0].y);
-                    const realDist = (pixelDist / pixelsPerMeter).toFixed(2) + " m";
-                    document.getElementById('measure-result').innerText = realDist;
-                    alert(`Gemessener Abstand: ${realDist}`);
-                    activeTool = null;
-                    document.getElementById('btn-measure').classList.remove('active-tool');
-                }
-            }
-        });
-
-        function setWorkflowStep(step) {
-            currentStep = step;
-            document.getElementById('step1-status').innerText = step === 1 ? 'Aktiv' : '✔ Erledigt';
-            document.getElementById('step2-status').innerText = step === 2 ? 'Aktiv' : (step > 2 ? '✔ Erledigt' : '🔒 Gesperrt');
-            toggleGroupLock('group-step2', step !== 2);
-            document.getElementById('btn-goto-step3').style.display = step === 2 ? 'block' : 'none';
-        }
-
-        function toggleGroupLock(groupId, lock) {
-            document.getElementById(groupId).querySelectorAll('.tool-btn').forEach(btn => {
-                lock ? btn.classList.add('locked') : btn.classList.remove('locked');
-            });
-        }
-
-        function toggleAdminMode() {
-            isAdmin = !isAdmin;
-            document.getElementById('header-badge').innerText = isAdmin ? "Profi-Modus (Admin)" : "Privatkunden-Modus";
-            document.getElementById('mode-indicator').innerText = isAdmin ? "Profi (Admin)" : "Privatkunde";
-            document.getElementById('step3-status').innerText = isAdmin ? "Aktiv" : "🔒 GESPERRT";
-            document.getElementById('step3-status').style.color = isAdmin ? "var(--accent-green)" : "var(--accent-red)";
-            document.getElementById('group-step3').querySelectorAll('.tool-btn').forEach(btn => {
-                isAdmin ? btn.classList.remove('locked') : btn.classList.add('locked');
-            });
-            alert(isAdmin ? "Admin-Modus aktiv!" : "Admin-Modus aus.");
-        }
-
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function showGenericModal(title, text) {
-            document.getElementById('generic-modal-title').innerText = title;
-            document.getElementById('generic-modal-desc').innerText = text;
-            document.getElementById('modal-generic').classList.remove('hidden');
-        }
-        function closeAllModals() {
-            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-        }
-        function handleProAction(name) {
-            if (!isAdmin) { alert("🔒 Nur für Administratoren!"); return; }
-            showGenericModal("Profi-Modus", `Aktion gestartet: ${name}`);
-        }
-
-        centerCanvas();
-    </script>
+    <!-- Modularer JavaScript-Aufbau -->
+    <script src="js/state.js"></script>
+    <script src="js/canvas-engine.js"></script>
+    <script src="js/tools.js"></script>
+    <script src="js/drawing.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
