@@ -78,14 +78,20 @@
         <div class="viewport" id="viewport-div">
             <canvas id="map-canvas" width="6000" height="6000"></canvas>
             <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+            
+            <!-- Visuelle Maßstabs-Legende für planlose Grundrisse -->
+            <div class="scale-legend">
+                <span id="legend-text" style="text-align: center;">Maßstab: 1m</span>
+                <div class="scale-bar-line" id="legend-bar"></div>
+            </div>
+
             <div class="hud-controls">
                 <span>Zoom: <strong id="zoom-indicator">100%</strong></span>
-                <span>Maßstab: <strong id="scale-indicator">Nicht geeicht</strong></span>
+                <span>Maßstab: <strong id="scale-indicator">40.0 px/m (Standard)</strong></span>
                 <span>Letzte Messung: <strong id="measure-result">-</strong></span>
                 <span>Modus: <strong id="mode-indicator">Privatkunde</strong></span>
             </div>
         </div>
-    </div>
 
     <!-- MODAL START-WASSER -->
     <div id="modal-startwater" class="modal-overlay hidden">
