@@ -44,7 +44,8 @@
         .step-next-btn:hover { background: rgba(56, 189, 248, 0.3); }
 
         .viewport { flex: 1; background: #050b14; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        #map-canvas { background-color: #08101e; box-shadow: 0 0 50px rgba(0,0,0,0.8); cursor: crosshair; }
+        #map-canvas { background-color: #08101e; cursor: grab; }
+        #map-canvas:active { cursor: grabbing; }
 
         .hud-controls { position: absolute; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 16px; display: flex; gap: 15px; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 10; }
         .hud-btn { background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
@@ -119,10 +120,11 @@
             </div>
         </sidebar>
 
-        <div class="viewport">
-            <canvas id="map-canvas" width="1000" height="700"></canvas>
+        <div class="viewport" id="viewport-div">
+            <canvas id="map-canvas" width="6000" height="6000"></canvas>
             <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
             <div class="hud-controls">
+                <span>Zoom: <strong id="zoom-indicator">100%</strong></span>
                 <span>Maßstab: <strong id="scale-indicator">Nicht geeicht</strong></span>
                 <span>Letzte Messung: <strong id="measure-result">-</strong></span>
                 <span>Modus: <strong id="mode-indicator">Privatkunde</strong></span>
@@ -171,64 +173,149 @@
     <script>
         const canvas = document.getElementById('map-canvas');
         const ctx = canvas.getContext('2d');
+        const viewport = document.getElementById('viewport-div');
 
         let currentStep = 1;
         let isAdmin = false;
         let uploadedImage = null;
-        let activeTool = null; // 'scale' (Globaler Maßstab) oder 'measure' (Freie Kontrollmessung)
+        let activeTool = null; // 'scale' oder 'measure'
+
+        let zoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
 
         let scalePoints = [];
-        let pixelsPerMeter = null;
+        let pixelsPerMeter = 40; // Standard: 40px = 1 Meter
         let measurePoints = [];
+
+        function centerCanvas() {
+            panX = (viewport.clientWidth - canvas.width) / 2;
+            panY = (viewport.clientHeight - canvas.height) / 2;
+            redrawCanvas();
+        }
 
         function redrawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Hintergrund: Entweder Bild oder Standard-Raster (1m x 1m)
+            ctx.save();
+            ctx.translate(panX, panY);
+            ctx.scale(zoom, zoom);
+
+            // 1. Hintergrund: Entweder hochgeladenes Bild oder adaptives Raster
             if (uploadedImage) {
-                ctx.drawImage(uploadedImage, 50, 50, 800, 500);
+                // Bild zentriert oder am Ursprung zeichnen
+                ctx.drawImage(uploadedImage, 0, 0);
             } else {
+                // Adaptives Raster (skaliert automatisch je nach Zoomstufe)
+                let gridMeters = 1;
+                if (zoom < 0.3) { gridMeters = 20; }
+                else if (zoom < 0.6) { gridMeters = 10; }
+                else if (zoom < 1.2) { gridMeters = 5; }
+                else { gridMeters = 1; }
+
+                let stepPx = pixelsPerMeter * gridMeters;
+
                 ctx.strokeStyle = '#1e293b';
-                ctx.lineWidth = 1;
-                const gridSize = 40;
-                for (let x = 0; x < canvas.width; x += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                ctx.lineWidth = 1.2 / zoom;
+
+                const startCoord = -15000;
+                const endCoord = 21000;
+
+                for (let x = startCoord; x <= endCoord; x += stepPx) {
+                    ctx.beginPath(); ctx.moveTo(x, startCoord); ctx.lineTo(x, endCoord); ctx.stroke();
                 }
-                for (let y = 0; y < canvas.height; y += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                for (let y = startCoord; y <= endCoord; y += stepPx) {
+                    ctx.beginPath(); ctx.moveTo(startCoord, y); ctx.lineTo(endCoord, y); ctx.stroke();
                 }
-                ctx.fillStyle = '#475569';
-                ctx.font = '13px Segoe UI';
-                ctx.fillText("Kein Grundriss geladen – 1m Raster aktiv (Laden Sie links einen Plan hoch)", 30, 40);
+
+                // Nullpunkt-Achsen
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2 / zoom;
+                ctx.beginPath(); ctx.moveTo(0, startCoord); ctx.lineTo(0, endCoord); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(startCoord, 0); ctx.lineTo(endCoord, 0); ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = `${14 / zoom}px Segoe UI`;
+                ctx.fillText(`Virtuelle Welt – Raster: ${gridMeters}m-Abstand (Verschieben per Drag, Zoom per Mausrad)`, 100, 100);
             }
 
-            // 2. Globaler Eich-Pfad (Gelb)
+            // 2. Eich-Punkte & Linie (Gelb)
             if (scalePoints.length > 0) {
                 ctx.fillStyle = '#f59e0b';
                 scalePoints.forEach((pt) => {
-                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 8 / zoom, 0, Math.PI * 2); ctx.fill();
                 });
                 if (scalePoints.length === 2) {
                     ctx.strokeStyle = '#f59e0b';
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 3 / zoom;
                     ctx.beginPath(); ctx.moveTo(scalePoints[0].x, scalePoints[0].y); ctx.lineTo(scalePoints[1].x, scalePoints[1].y); ctx.stroke();
                 }
             }
 
-            // 3. Freier Kontrollmess-Pfad (Cyan)
+            // 3. Kontrollmess-Punkte & Linie (Cyan)
             if (measurePoints.length > 0) {
                 ctx.fillStyle = '#38bdf8';
                 measurePoints.forEach((pt) => {
-                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(pt.x, pt.y, 7 / zoom, 0, Math.PI * 2); ctx.fill();
                 });
                 if (measurePoints.length === 2) {
                     ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 3 / zoom;
                     ctx.beginPath(); ctx.moveTo(measurePoints[0].x, measurePoints[0].y); ctx.lineTo(measurePoints[1].x, measurePoints[1].y); ctx.stroke();
                 }
             }
+
+            ctx.restore();
+            document.getElementById('zoom-indicator').innerText = Math.round(zoom * 100) + '%';
         }
 
+        // --- MOUSE & ZOOM STEUERUNG (PAN & ZOOM) ---
+        viewport.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && !activeTool) {
+                isDragging = true;
+                startX = e.clientX - panX;
+                startY = e.clientY - panY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                redrawCanvas();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomIntensity = 0.1;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const prevZoom = zoom;
+            if (e.deltaY < 0) {
+                zoom *= (1 + zoomIntensity);
+            } else {
+                zoom /= (1 + zoomIntensity);
+            }
+
+            zoom = Math.max(0.01, Math.min(30.0, zoom));
+
+            panX = mouseX - (mouseX - panX) * (zoom / prevZoom);
+            panY = mouseY - (mouseY - panY) * (zoom / prevZoom);
+
+            redrawCanvas();
+        }, { passive: false });
+
+        // --- BILDUPLOAD & TOOLS ---
         function triggerFileUpload() {
             document.getElementById('file-input').click();
         }
@@ -242,7 +329,7 @@
                     img.onload = function() {
                         uploadedImage = img;
                         redrawCanvas();
-                        alert("Plan erfolgreich geladen! Nutzen Sie jetzt '1. Globalen Maßstab eichen', um den Maßstab festzulegen.");
+                        alert("Plan erfolgreich geladen! Nutzen Sie jetzt '1. Globalen Maßstab eichen'.");
                     }
                     img.src = event.target.result;
                 }
@@ -255,25 +342,26 @@
             scalePoints = [];
             document.getElementById('btn-scale').classList.add('active-tool');
             document.getElementById('btn-measure').classList.remove('active-tool');
-            alert("Eich-Modus aktiv: Klicken Sie auf zwei Punkte mit bekannter Länge (z.B. Grundstücksgrenze), um den Maßstab global zu setzen.");
+            alert("Eich-Modus aktiv: Klicken Sie auf zwei Punkte mit bekannter Länge.");
         }
 
         function activateMeasureTool() {
             if (!pixelsPerMeter) {
-                alert("⚠️ Bitte zuerst den globalen Maßstab (Schritt 1) eichen, damit in Metern gemessen werden kann!");
+                alert("⚠️ Bitte zuerst den globalen Maßstab (Schritt 1) eichen!");
                 return;
             }
             activeTool = 'measure';
             measurePoints = [];
             document.getElementById('btn-measure').classList.add('active-tool');
             document.getElementById('btn-scale').classList.remove('active-tool');
-            alert("Kontrollmess-Modus aktiv: Klicken Sie zwei beliebige Punkte an, um den Abstand zu prüfen.");
+            alert("Kontrollmess-Modus aktiv: Klicken Sie zwei Punkte an.");
         }
 
         canvas.addEventListener('click', function(e) {
+            if (isDragging) return;
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
 
             if (activeTool === 'scale') {
                 scalePoints.push({x, y});
@@ -284,7 +372,7 @@
                     if (realMeters && !isNaN(realMeters) && realMeters > 0) {
                         pixelsPerMeter = pixelDist / parseFloat(realMeters);
                         document.getElementById('scale-indicator').innerText = `${pixelsPerMeter.toFixed(1)} px/m`;
-                        alert(`Globaler Maßstab erfolgreich geeicht: ${pixelsPerMeter.toFixed(1)} Pixel pro Meter.`);
+                        alert(`Globaler Maßstab geeicht: ${pixelsPerMeter.toFixed(1)} Pixel/Meter.`);
                     }
                     activeTool = null;
                     document.getElementById('btn-scale').classList.remove('active-tool');
@@ -327,7 +415,7 @@
             document.getElementById('group-step3').querySelectorAll('.tool-btn').forEach(btn => {
                 isAdmin ? btn.classList.remove('locked') : btn.classList.add('locked');
             });
-            alert(isAdmin ? "Admin-Modus aktiv: Profi-Bereich freigeschaltet!" : "Admin-Modus deaktiviert.");
+            alert(isAdmin ? "Admin-Modus aktiv!" : "Admin-Modus aus.");
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -344,8 +432,7 @@
             showGenericModal("Profi-Modus", `Aktion gestartet: ${name}`);
         }
 
-        // Init beim Laden
-        redrawCanvas();
+        centerCanvas();
     </script>
 </body>
 </html>
