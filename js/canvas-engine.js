@@ -35,7 +35,42 @@ function redrawCanvas() {
         ctx.beginPath(); ctx.moveTo(0, startCoord); ctx.lineTo(0, endCoord); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(startCoord, 0); ctx.lineTo(endCoord, 0); ctx.stroke();
     }
+// In redrawCanvas() einfügen (unter den Formen):
 
+    // Wasserquellen und Zisternen zeichnen
+    waterSources.forEach(source => {
+        ctx.save();
+        ctx.translate(source.x, source.y);
+
+        // Äußerer Kreis / Icon-Hintergrund
+        ctx.beginPath();
+        ctx.arc(0, 0, 16 / zoom, 0, Math.PI * 2);
+        ctx.fillStyle = source.sourceType === 'cistern' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.4)';
+        ctx.fill();
+        ctx.lineWidth = 2 / zoom;
+        ctx.strokeStyle = source.sourceType === 'cistern' ? '#38bdf8' : '#0284c7';
+        ctx.stroke();
+
+        // Symbol / Text
+        ctx.font = `${12 / zoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(source.sourceType === 'cistern' ? '💧Z' : '🚰', 0, 0);
+
+        // Status-Badge direkt am Objekt (z.B. Warnung wenn Eimertest fehlt)
+        if (!source.flowTestDone) {
+            ctx.beginPath();
+            ctx.arc(10 / zoom, -10 / zoom, 5 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = '#f59e0b'; // Gelber Punkt für ausstehenden Test
+            ctx.fill();
+            ctx.strokeStyle = '#050b14';
+            ctx.lineWidth = 1.5 / zoom;
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    });
     // Fertige Formen zeichnen
     shapes.forEach(shape => {
         ctx.beginPath();
