@@ -21,3 +21,4 @@ let measurePoints = [];
 let shapes = []; 
 let currentDrawingPoints = []; 
 let activeShapeType = null;
+
