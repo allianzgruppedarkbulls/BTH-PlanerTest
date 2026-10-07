@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTH PLANWERK - Testumgebung mit Zwei-Wege-Messung</title>
+    <title>BTH PLANWERK - Testumgebung</title>
     <style>
         :root {
             --bth-blue-dark: #050b14;
@@ -35,7 +35,7 @@
 
         .tool-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #050b14; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-main); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: left; }
         .tool-btn:hover:not(.locked) { border-color: var(--bth-cyan); background: rgba(2, 132, 199, 0.1); }
-        .tool-btn.active-tool { border-color: var(--accent-green); background: rgba(16, 185, 129, 0.15); }
+        .tool-btn.active-tool { border-color: var(--accent-green); background: rgba(16, 185, 129, 0.2); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
         .tool-btn.locked { opacity: 0.4; cursor: not-allowed; border-color: rgba(255, 255, 255, 0.05); }
         .tool-btn.locked::after { content: '🔒'; margin-left: auto; font-size: 0.75rem; }
         .tool-btn.pro-locked { border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.05); }
@@ -46,23 +46,20 @@
         .viewport { flex: 1; background: #050b14; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #map-canvas { background-color: #08101e; box-shadow: 0 0 50px rgba(0,0,0,0.8); cursor: crosshair; }
 
-        .hud-controls { position: absolute; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 16px; display: flex; gap: 12px; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 10; }
+        .hud-controls { position: absolute; bottom: 20px; right: 20px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 16px; display: flex; gap: 15px; align-items: center; font-size: 0.8rem; color: var(--text-muted); z-index: 10; }
         .hud-btn { background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
-        .hud-btn.active { background: var(--bth-blue-primary); border-color: var(--bth-cyan); }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(5, 11, 20, 0.88); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 100; opacity: 1; transition: opacity 0.3s ease; }
         .modal-overlay.hidden { opacity: 0; pointer-events: none; }
-        .modal-card { background: var(--bth-card-bg); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 20px; width: 100%; max-width: 620px; padding: 30px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
-        .modal-card h2 { font-size: 1.3rem; margin-bottom: 10px; background: linear-gradient(135deg, #ffffff 30%, var(--bth-cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .modal-card p { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
-
+        .modal-card { background: var(--bth-card-bg); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 20px; width: 100%; max-width: 620px; padding: 30px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); }
+        .modal-card h2 { font-size: 1.3rem; margin-bottom: 10px; color: #fff; }
+        .modal-card p { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px; }
         .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-        .input-group label { font-size: 0.8rem; color: var(--text-main); display: flex; justify-content: space-between; }
-        .input-group input, .input-group select { padding: 10px 12px; background: #050b14; border: 1px solid var(--border-color); border-radius: 8px; color: #fff; outline: none; font-size: 0.85rem; }
-
+        .input-group label { font-size: 0.8rem; color: var(--text-main); }
+        .input-group select { padding: 10px 12px; background: #050b14; border: 1px solid var(--border-color); border-radius: 8px; color: #fff; outline: none; font-size: 0.85rem; }
         .button-row { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-submit { flex: 2; padding: 12px; background: var(--bth-blue-primary); border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
-        .btn-back { flex: 1; padding: 12px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-muted); font-weight: bold; font-size: 0.85rem; cursor: pointer; text-align: center; }
+        .btn-submit { flex: 2; padding: 12px; background: var(--bth-blue-primary); border: none; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; }
+        .btn-back { flex: 1; padding: 12px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-muted); font-weight: bold; cursor: pointer; text-align: center; }
     </style>
 </head>
 <body>
@@ -73,7 +70,7 @@
         </div>
         <div class="user-info">
             <span class="badge-mode" id="header-badge">Privatkunden-Modus</span>
-            <button class="hud-btn" onclick="toggleAdminMode()" id="admin-toggle-btn" style="background: var(--accent-purple);">🔑 Admin-Modus</button>
+            <button class="hud-btn" onclick="toggleAdminMode()" style="background: var(--accent-purple);">🔑 Admin-Modus</button>
         </div>
     </header>
 
@@ -88,101 +85,4 @@
                 <button class="tool-btn" onclick="triggerFileUpload()">🖼️ Plan / Bild hochladen</button>
                 <button class="tool-btn" id="btn-scale" onclick="activateScaleTool()">📏 1. Globalen Maßstab eichen</button>
                 <button class="tool-btn" id="btn-measure" onclick="activateMeasureTool()">🔍 2. Freie Kontrollmessung</button>
-                <button class="tool-btn" style="border-color: var(--accent-green); margin-top: 6px;" onclick="setWorkflowStep(2)">➔ Weiter zu Schritt 2</button>
-            </div>
-
-            <!-- SCHRITT 2 -->
-            <div class="section-title" style="margin-top: 10px;">
-                2. Vorbereitung & Bestandsaufnahme
-                <span id="step2-status" style="color: var(--text-muted); font-size: 0.7rem;">🔒 Gesperrt</span>
-            </div>
-            <div class="tool-group" id="group-step2">
-                <button class="tool-btn locked" onclick="showGenericModal('Gebäude', 'Umrisse einzeichnen')">🏠 Gebäude / Haus einzeichnen</button>
-                <button class="tool-btn locked" onclick="showGenericModal('Rasen', 'Rasenflächen einzeichnen')">🌱 Rasenfläche einzeichnen</button>
-                <button class="tool-btn locked" onclick="showGenericModal('Beet', 'Beetflächen einzeichnen')">🌺 Beetfläche einzeichnen</button>
-                <button class="tool-btn locked" onclick="openModal('modal-startwater')">🚰 Start-Wasseranschluss & Gewinde</button>
-                <button class="step-next-btn" id="btn-goto-step3" style="display: none;" onclick="setWorkflowStep(3)">Weiter zu 3. Profi-Bereich ➔</button>
-            </div>
-
-            <!-- SCHRITT 3 (PROFI-BEREICH) -->
-            <div class="section-title" style="margin-top: 10px;">
-                3. Profi-Bereich (BTH Intern)
-                <span id="step3-status" style="color: var(--accent-red); font-size: 0.7rem;">🔒 GESPERRT (Admin)</span>
-            </div>
-            <div class="tool-group" id="group-step3">
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_sprinkler')">🎯 Regner einzeichnen (MP Rotator)</button>
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_pipe')">🔌 Rohrleitung einzeichnen</button>
-                <button class="tool-btn locked pro-locked" onclick="handleButtonClick('pro_material')">🔩 Kleinmaterial & Abzweiger</button>
-            </div>
-
-            <button class="step-next-btn" style="margin-top: auto; border-color: var(--accent-green); color: var(--accent-green);" onclick="setWorkflowStep(2)">
-                Workflow freischalten (Test)
-            </button>
-        </sidebar>
-
-        <div class="viewport" id="viewport-container">
-            <canvas id="map-canvas" width="1000" height="700"></canvas>
-            <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-            <div class="hud-controls">
-                <span>Maßstab: <strong id="scale-indicator">Nicht geeicht</strong></span>
-                <span>Letzte Messung: <strong id="measure-result">-</strong></span>
-                <span>Modus: <strong id="mode-indicator">Privatkunde</strong></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: START-WASSERANSCHLUSS -->
-    <div id="modal-startwater" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h2>🚰 Start-Wasseranschluss & Bestand</h2>
-            <p>Beschreiben Sie den vorhandenen Wasseranschluss:</p>
-            <div class="input-group">
-                <label>Gewindegröße</label>
-                <select id="thread-size">
-                    <option value="0.75" selected>3/4 Zoll (0.75") - Standard</option>
-                    <option value="1.0">1 Zoll (1.0")</option>
-                    <option value="0.5">1/2 Zoll (0.5")</option>
-                </select>
-            </div>
-            <div class="button-row">
-                <button class="btn-back" onclick="closeAllModals()">Abbrechen</button>
-                <button class="btn-submit" onclick="closeAllModals(); setWorkflowStep(3);">Speichern & Weiter</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: GENERIC -->
-    <div id="modal-generic" class="modal-overlay hidden">
-        <div class="modal-card">
-            <h2 id="generic-modal-title">Aktion</h2>
-            <p id="generic-modal-desc">Details...</p>
-            <div class="button-row">
-                <button class="btn-submit" onclick="closeAllModals()">Schließen</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const canvas = document.getElementById('map-canvas');
-        const ctx = canvas.getContext('2d');
-
-        let currentStep = 1;
-        let isAdmin = false;
-        let uploadedImage = null;
-        let activeTool = null; // 'scale' oder 'measure'
-
-        // Eich- & Messvariablen
-        let scalePoints = [];
-        let pixelsPerMeter = null;
-
-        let measurePoints = [];
-        let lastMeasuredDistance = null;
-
-        function redrawCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 1. Hintergrundbild zeichnen
-            if (uploadedImage) {
-                ctx.drawImage(uploadedImage, 50, 50, 800, 500);
-            } else {
-                ctx.strokeStyle = '#1e293b';
+                <button class="tool-btn" style="border-color: var(--accent-green); margin-top: 6px;" onclick="setWorkflow
