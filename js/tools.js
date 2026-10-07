@@ -68,24 +68,24 @@ function openWaterModal(sourceId) {
     const source = waterSources.find(s => s.id === sourceId);
     if (!source) return;
 
-    // Werte ins Modal schreiben
-    document.getElementById('thread-size').value = source.threadSize;
-    document.getElementById('thread-type').value = source.threadType;
-    document.getElementById('source-type-select').value = source.sourceType;
+    document.getElementById('thread-size').value = source.threadSize || '0.75';
+    document.getElementById('source-type-select').value = source.sourceType || 'tap';
+    document.getElementById('pump-model-select').value = source.pumpModel || 'none';
     
-    // Status des Eimertests im Modal anzeigen
+    document.getElementById('input-flow-lpm').value = source.flowRateLpm || '';
+    document.getElementById('input-pressure-bar').value = source.pressureBar || '';
+
     const testStatusEl = document.getElementById('modal-test-status');
     if (testStatusEl) {
         if (source.flowTestDone) {
-            testStatusEl.innerHTML = `✅ Eimertest durchgeführt: ${source.flowRateLpm} L/min bei ${source.pressureBar} bar`;
-            testStatusEl.style.color = 'var(--accent-green)';
+            testStatusEl.innerHTML = `✅ Eimertest hinterlegt: ${source.flowRateLpm} L/min bei ${source.pressureBar} bar`;
+            testStatusEl.style.color = '#10b981';
         } else {
-            testStatusEl.innerHTML = `⚠️ Eimertest ausstehend (jederzeit nachholbar)`;
-            testStatusEl.style.color = 'var(--accent-yellow)';
+            testStatusEl.innerHTML = `⚠️ Eimertest ausstehend`;
+            testStatusEl.style.color = '#f59e0b';
         }
     }
 
-    // ID im Modal hinterlegen zum Speichern
     document.getElementById('modal-startwater').setAttribute('data-active-id', sourceId);
     openModal('modal-startwater');
 }
@@ -97,34 +97,22 @@ function saveWaterSourceFromModal() {
 
     if (source) {
         source.threadSize = document.getElementById('thread-size').value;
-        source.threadType = document.getElementById('thread-type').value;
         source.sourceType = document.getElementById('source-type-select').value;
+        source.pumpModel = document.getElementById('pump-model-select').value;
         
-        // Rohrquerschnitt logisch ableiten (z.B. ab 1 Zoll oder Standard PE32)
+        const lpmVal = document.getElementById('input-flow-lpm').value;
+        const barVal = document.getElementById('input-pressure-bar').value;
+
+        if (lpmVal && barVal && !isNaN(lpmVal) && !isNaN(barVal)) {
+            source.flowRateLpm = parseFloat(lpmVal);
+            source.pressureBar = parseFloat(barVal);
+            source.flowTestDone = true;
+        }
+
+        // Rohrquerschnitt automatisch mappen (ab 1 Zoll standardmäßig PE 32)
         source.pipeDiameterMm = (source.threadSize === '1.0' || source.threadSize === '1.25') ? 32 : 25;
     }
 
     closeAllModals();
     redrawCanvas();
-}
-
-function openEimerTestModalFromWater() {
-    // Schließt das Wasser-Modal kurz und öffnet den Eimertest
-    closeAllModals();
-    const sourceId = document.getElementById('modal-startwater').getAttribute('data-active-id');
-    
-    // Einfaches Prompt oder separates Modal für den Eimertest
-    const lpm = prompt("Wassermenge beim Eimertest (Liter pro Minute, z.B. 25):", "25");
-    if (lpm && !isNaN(lpm)) {
-        const bar = prompt("Fließdruck in bar (geschätzt oder gemessen, z.B. 3.5):", "3.5");
-        
-        const source = waterSources.find(s => s.id === sourceId);
-        if (source) {
-            source.flowTestDone = true;
-            source.flowRateLpm = parseFloat(lpm);
-            source.pressureBar = parseFloat(bar || 3.0);
-            alert("Eimertest erfolgreich hinterlegt!");
-            redrawCanvas();
-        }
-    }
 }
