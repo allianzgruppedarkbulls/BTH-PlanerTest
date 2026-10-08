@@ -65,3 +65,14 @@ function getParentPartsForSprinkler(sprinklerArtNr) {
         return irrigationCatalog.find(p => p.artNr === parentArtNr);
     }).filter(p => p !== undefined);
 }
+
+// 4. Integrations-Hook / UI-Steuerung für den Regner-Button
+function activateRegnerTool() {
+    console.log("Regner-Modul aktiv. Katalog-Länge:", irrigationCatalog.length);
+    
+    const rotatoren = findMatchingSprinklers("Rotationsregner", null, null);
+    
+    if (typeof showGenericModal === 'function') {
+        showGenericModal('MP Rotator Auswahl', `Katalog erfolgreich geladen: ${rotatoren.length} Regner-Modelle und Gehäuse-Zuordnungen bereit.`);
+    }
+}
