@@ -1,6 +1,6 @@
 /**
  * Bewässerungs-Produktkatalog & Berechnungs-Logik (BTH Planwerk)
- * Inklusive halbautomatischer Gehäusewahl (Eltern-Teile) & flexibler Zuordnung
+ * Inklusive Hersteller-Auswahl & vollautomatischer Radius-/Winkel-Erkennung auf dem Canvas
  */
 
 // 1. Komplette Datenbasis als JavaScript-Array (später: await loadCatalogFromDatabase())
@@ -36,9 +36,9 @@ const irrigationCatalog = [
     { art: "Aufsteiger", hersteller: "Rain Bird", bez: "Gehäuse 1804-SAM (10 cm / 1/2\" IG - Universal)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "RB1804", eltern: [] }
 ];
 
-// 2. Kern-Automationslogik: Ermittelt den Regner nach Radius und verknüpft das gewählte Vater-Teil
-function resolveSprinklerFromCanvas(productFamily, targetRadiusMeters, targetAngleDeg, selectedParentArtNr) {
-    const familyItems = irrigationCatalog.filter(i => i.art === productFamily && i.art !== "Aufsteiger");
+// 2. Kern-Automationslogik: Ermittelt den Regner dynamisch aus dem gezeichneten Radius & Winkel auf dem Canvas
+function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRadiusMeters, targetAngleDeg, selectedParentArtNr) {
+    const familyItems = irrigationCatalog.filter(i => i.hersteller === targetManufacturer && i.art === productFamily && i.art !== "Aufsteiger");
     if (familyItems.length === 0) return null;
 
     let suitableMatches = familyItems.filter(item => {
@@ -56,7 +56,7 @@ function resolveSprinklerFromCanvas(productFamily, targetRadiusMeters, targetAng
 
     const selectedSprinkler = suitableMatches[0];
 
-    // Das vom Nutzer gewählte oder Standard-Vater-Teil (Gehäuse) zuordnen
+    // Gewähltes Vater-Teil (Gehäuse) zuordnen (falls vorhanden)
     const parentGehaeuse = irrigationCatalog.find(p => p.artNr === selectedParentArtNr) || 
                            irrigationCatalog.find(p => p.artNr === selectedSprinkler.eltern[0]);
 
@@ -66,10 +66,11 @@ function resolveSprinklerFromCanvas(productFamily, targetRadiusMeters, targetAng
     };
 }
 
-// 3. UI-Integration: Auswahldialog mit Produktfamilien UND flexibler Gehäusewahl (Vater-Teile)
+// 3. UI-Integration: Auswahldialog mit Hersteller, Produktfamilie und flexibler Gehäusewahl
 function activateRegnerTool() {
-    console.log("Regner-Modul aktiv (Mit halbautomatischer Gehäusewahl).");
+    console.log("Regner-Modul aktiv (Mit Hersteller- und Familienwahl).");
 
+    const manufacturers = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
     const productFamilies = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
     const allGehaeuse = irrigationCatalog.filter(i => i.art === "Aufsteiger");
 
@@ -80,22 +81,20 @@ function activateRegnerTool() {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-card" style="min-width: 440px;">
-                <h2>🎯 Regner & Gehäuse konfigurieren</h2>
-                <p>Wählen Sie die Produktfamilie. Das Modell wird beim Aufziehen auf dem Plan automatisch ermittelt. Bestimmen Sie hier optional das bevorzugte Gehäuse (Vater-Teil):</p>
+                <h2>🎯 Regner & Hersteller wählen</h2>
+                <p>Wählen Sie den Hersteller und die Produktfamilie. Der genaue Regner (MP1000, MP2000 etc.), Radius und Sektor werden beim Aufziehen auf dem Plan vollautomatisch ermittelt:</p>
                 
                 <div class="input-group" style="margin-bottom: 12px;">
-                    <label>Produktfamilie (Düsen-Typ)</label>
-                    <select id="regner-family-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                    <label>Hersteller / Marke</label>
+                    <select id="regner-manufacturer-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
                         <!-- Wird dynamisch gefüllt -->
                     </select>
                 </div>
 
                 <div class="input-group" style="margin-bottom: 12px;">
-                    <label>Standard-Sektor / Winkel</label>
-                    <select id="regner-default-angle" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
-                        <option value="90">90° (Viertelkreis)</option>
-                        <option value="180">180° (Halbkreis)</option>
-                        <option value="360" selected>360° (Vollkreis)</option>
+                    <label>Produktfamilie</label>
+                    <select id="regner-family-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                        <!-- Wird dynamisch gefüllt -->
                     </select>
                 </div>
 
@@ -115,6 +114,7 @@ function activateRegnerTool() {
         document.body.appendChild(modal);
     }
 
+    document.getElementById('regner-manufacturer-select').innerHTML = manufacturers.map(m => `<option value="${m}">${m}</option>`).join('');
     document.getElementById('regner-family-select').innerHTML = productFamilies.map(f => `<option value="${f}">${f}</option>`).join('');
     document.getElementById('regner-parent-select').innerHTML = allGehaeuse.map(g => `<option value="${g.artNr}">${g.bez} (${g.hersteller})</option>`).join('');
 
@@ -127,18 +127,18 @@ function closeRegnerModal() {
 }
 
 function confirmRegnerFamilySelection() {
+    const selectedManufacturer = document.getElementById('regner-manufacturer-select').value;
     const selectedFamily = document.getElementById('regner-family-select').value;
-    const defaultAngle = parseInt(document.getElementById('regner-default-angle').value);
     const selectedParentArtNr = document.getElementById('regner-parent-select').value;
     
     closeRegnerModal();
 
     activeTool = 'place-sprinkler';
     window.activeSprinklerConfig = {
+        manufacturer: selectedManufacturer,
         family: selectedFamily,
-        angle: defaultAngle,
         parentArtNr: selectedParentArtNr
     };
 
-    alert(`Konfiguration aktiv:\n• Familie: ${selectedFamily} (${defaultAngle}°)\n• Gehäuse: Gewähltes Vater-Teil\n\nKlicken und Radius auf dem Plan aufziehen!`);
+    alert(`Bereit zum Zeichnen:\n• Hersteller: ${selectedManufacturer}\n• Familie: ${selectedFamily}\n\nZiehen Sie jetzt den Kreis auf dem Plan auf – Radius und Winkel bestimmen den exakten Regner automatisch!`);
 }
