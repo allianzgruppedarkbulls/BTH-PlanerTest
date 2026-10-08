@@ -30,7 +30,12 @@ const irrigationCatalog = [
     { art: "Aufsteiger", hersteller: "Rain Bird", bez: "Gehäuse 1804-SAM (10 cm / 1/2\" IG - Universal)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "RB1804", eltern: [] }
 ];
 
-let sprinklers = [];
+// Sicherstellen, dass sprinklers nur einmal global referenziert wird
+if (typeof window.sprinklers === 'undefined') {
+    window.sprinklers = [];
+}
+let sprinklers = window.sprinklers;
+
 let activeSprinklerDrag = null;
 let selectedSprinkler = null;
 
@@ -84,7 +89,7 @@ function drawSprinklersModule(ctx, zoom) {
         ctx.save();
         ctx.translate(s.x, s.y);
 
-        const rPx = s.radiusPx || (s.radiusMeters * pixelsPerMeter);
+        const rPx = s.radiusPx || (s.radiusMeters * (window.pixelsPerMeter || 40));
         const startRad = ((s.startAngle || 0) * Math.PI) / 180;
         const endRad = (((s.startAngle || 0) + (s.angleDeg || 360)) * Math.PI) / 180;
 
@@ -147,7 +152,7 @@ function drawSprinklersModule(ctx, zoom) {
 
 // 4. UI & Tool-Aktivierung
 function activateRegnerTool() {
-    activeTool = 'place-sprinkler';
+    window.activeTool = 'place-sprinkler';
     const manufacturers = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
     const productFamilies = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
     const allGehaeuse = irrigationCatalog.filter(i => i.art === "Aufsteiger");
@@ -199,6 +204,6 @@ function confirmRegnerFamilySelection() {
         parentArtNr: document.getElementById('regner-parent-select').value
     };
     closeRegnerModal();
-    activeTool = 'place-sprinkler';
+    window.activeTool = 'place-sprinkler';
     alert("Bereit zum Zeichnen: Ziehen Sie den Regner auf dem Plan auf!");
 }
