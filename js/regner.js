@@ -69,7 +69,11 @@ function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRad
 // 3. UI-Integration: Auswahldialog mit Hersteller, Produktfamilie und flexibler Gehäusewahl
 function activateRegnerTool() {
     console.log("Regner-Modul aktiv (Mit Hersteller- und Familienwahl).");
+    
+    // WICHTIG: Hier muss das Tool global aktiviert werden, damit der Canvas-Listener anspringt!
+    activeTool = 'place-sprinkler';
 
+    // Rest deiner Logik für das Modal / die Auswahl...
     const manufacturers = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
     const productFamilies = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
     const allGehaeuse = irrigationCatalog.filter(i => i.art === "Aufsteiger");
