@@ -1,11 +1,9 @@
 /**
- * Bewässerungs-Produktkatalog & Berechnungs-Logik (BTH Planwerk)
- * Inklusive Hersteller-Auswahl & vollautomatischer Radius-/Winkel-Erkennung auf dem Canvas
+ * Bewässerungs-Produktkatalog, Handles & Berechnungs-Logik (BTH Planwerk)
+ * 100% gekapselt im Regner-Modul
  */
 
-// 1. Komplette Datenbasis als JavaScript-Array (später: await loadCatalogFromDatabase())
 const irrigationCatalog = [
-    // Rotationsregner (Kinder / Düsen)
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP800SR-90°", wMin: 0, wMax: 3.0, winkelMin: 90, winkelMax: 210, artNr: "450496", eltern: ["450480", "450481"] },
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP800SR-360°", wMin: 0, wMax: 3.0, winkelMin: 360, winkelMax: 360, artNr: "450497", eltern: ["450480", "450481"] },
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP815-90°", wMin: 0, wMax: 4.5, winkelMin: 90, winkelMax: 210, artNr: "450477", eltern: ["450480", "450481"] },
@@ -24,19 +22,19 @@ const irrigationCatalog = [
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP3000-210°", wMin: 0, wMax: 9.1, winkelMin: 210, winkelMax: 270, artNr: "450489", eltern: ["450480", "450481"] },
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP3000-360°", wMin: 0, wMax: 9.1, winkelMin: 360, winkelMax: 360, artNr: "450490", eltern: ["450480", "450481"] },
     { art: "Rotationsregner", hersteller: "Hunter", bez: "MP3500-90°", wMin: 0, wMax: 10.7, winkelMin: 90, winkelMax: 210, artNr: "450498", eltern: ["450480", "450481"] },
-    
-    // Sonderregner / Streifen
     { art: "Sonderregner", hersteller: "Hunter", bez: "Seitenstreifen MPSS530", wMin: 0, wMax: 5.0, winkelMin: 0, winkelMax: 360, artNr: "450491", eltern: ["450480", "450481"] },
     { art: "Sonderregner", hersteller: "Hunter", bez: "Streifen rechts MPRCS515", wMin: 0, wMax: 5.0, winkelMin: 0, winkelMax: 360, artNr: "450492", eltern: ["450480", "450481"] },
     { art: "Sonderregner", hersteller: "Hunter", bez: "Streifen links MPLCS515", wMin: 0, wMax: 5.0, winkelMin: 0, winkelMax: 360, artNr: "450493", eltern: ["450480", "450481"] },
-    
-    // Aufsteiger / Gehäuse (Elternteile / Vater-Teile mit 1/2" IG Anschluss)
     { art: "Aufsteiger", hersteller: "Hunter", bez: "Gehäuse PROS-04-CV (15.5 cm / 1/2\" IG)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "450480", eltern: [] },
     { art: "Aufsteiger", hersteller: "Hunter", bez: "Gehäuse PROS-12-CV (41.0 cm / 1/2\" IG - Hoch)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "450481", eltern: [] },
     { art: "Aufsteiger", hersteller: "Rain Bird", bez: "Gehäuse 1804-SAM (10 cm / 1/2\" IG - Universal)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "RB1804", eltern: [] }
 ];
 
-// 2. Kern-Automationslogik: Ermittelt den Regner dynamisch aus dem gezeichneten Radius & Winkel auf dem Canvas
+let sprinklers = [];
+let activeSprinklerDrag = null;
+let selectedSprinkler = null;
+
+// 1. Katalog-Auflösung (mit Sortierung nach kleinstem Radius & Winkel)
 function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRadiusMeters, targetAngleDeg, selectedParentArtNr) {
     const familyItems = irrigationCatalog.filter(i => i.hersteller === targetManufacturer && i.art === productFamily && i.art !== "Aufsteiger");
     if (familyItems.length === 0) return null;
@@ -48,36 +46,108 @@ function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRad
     });
 
     if (suitableMatches.length === 0) {
-        familyItems.sort((a, b) => b.wMax - b.wMax);
+        familyItems.sort((a, b) => a.wMax - b.wMax);
         suitableMatches = [familyItems[0]];
     } else {
-        // Optimierte Sortierung: Primär nach kleinstem Radius (wMax), sekundär nach kleinstem Startwinkel (winkelMin)
         suitableMatches.sort((a, b) => {
             if (a.wMax !== b.wMax) return a.wMax - b.wMax;
             return a.winkelMin - b.winkelMin;
         });
     }
 
-    const selectedSprinkler = suitableMatches[0];
-
-    // Gewähltes Vater-Teil (Gehäuse) zuordnen (falls vorhanden)
+    const selectedSprinklerItem = suitableMatches[0];
     const parentGehaeuse = irrigationCatalog.find(p => p.artNr === selectedParentArtNr) || 
-                           irrigationCatalog.find(p => p.artNr === selectedSprinkler.eltern[0]);
+                           irrigationCatalog.find(p => p.artNr === selectedSprinklerItem.eltern[0]);
+
+    return { sprinkler: selectedSprinklerItem, gehaeuse: parentGehaeuse };
+}
+
+// 2. Handle-Berechnung für das interaktive Ziehen
+function getSprinklerHandles(s) {
+    const rPx = s.radiusPx || (s.radiusMeters * (window.pixelsPerMeter || 40));
+    const startRad = ((s.startAngle || 0) * Math.PI) / 180;
+    const endRad = (((s.startAngle || 0) + (s.angleDeg || 360)) * Math.PI) / 180;
+    const midRad = startRad + (((s.angleDeg || 360) * Math.PI) / 360);
 
     return {
-        sprinkler: selectedSprinkler,
-        gehaeuse: parentGehaeuse
+        startHandle: { x: s.x + Math.cos(startRad) * rPx, y: s.y + Math.sin(startRad) * rPx },
+        endHandle: { x: s.x + Math.cos(endRad) * rPx, y: s.y + Math.sin(endRad) * rPx },
+        radiusHandle: { x: s.x + Math.cos(midRad) * rPx, y: s.y + Math.sin(midRad) * rPx }
     };
 }
 
-// 3. UI-Integration: Auswahldialog mit Hersteller, Produktfamilie und flexibler Gehäusewahl
-function activateRegnerTool() {
-    console.log("Regner-Modul aktiv (Mit Hersteller- und Familienwahl).");
-    
-    // WICHTIG: Hier muss das Tool global aktiviert werden, damit der Canvas-Listener anspringt!
-    activeTool = 'place-sprinkler';
+// 3. Modul-Renderfunktion (wird direkt vom Canvas-Engine aufgerufen)
+function drawSprinklersModule(ctx, zoom) {
+    if (typeof sprinklers === 'undefined') return;
 
-    // Rest deiner Logik für das Modal / die Auswahl...
+    sprinklers.forEach(s => {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+
+        const rPx = s.radiusPx || (s.radiusMeters * pixelsPerMeter);
+        const startRad = ((s.startAngle || 0) * Math.PI) / 180;
+        const endRad = (((s.startAngle || 0) + (s.angleDeg || 360)) * Math.PI) / 180;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, rPx, startRad, endRad);
+        ctx.closePath();
+        ctx.fillStyle = (s === selectedSprinkler) ? 'rgba(0, 173, 181, 0.35)' : 'rgba(56, 189, 248, 0.15)';
+        ctx.fill();
+        ctx.strokeStyle = (s === selectedSprinkler) ? '#00adb5' : '#38bdf8';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 6 / zoom, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+
+        ctx.font = `${10 / zoom}px sans-serif`;
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.resolvedData ? s.resolvedData.sprinkler.bez : 'Regner', 0, -12 / zoom);
+
+        if (s === selectedSprinkler) {
+            const h = getSprinklerHandles(s);
+            ctx.lineWidth = 1.5 / zoom;
+
+            ctx.beginPath(); ctx.arc(h.startHandle.x - s.x, h.startHandle.y - s.y, 7 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = '#f1c40f'; ctx.fill(); ctx.stroke();
+
+            ctx.beginPath(); ctx.arc(h.endHandle.x - s.x, h.endHandle.y - s.y, 7 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = '#2ecc71'; ctx.fill(); ctx.stroke();
+
+            ctx.beginPath(); ctx.arc(h.radiusHandle.x - s.x, h.radiusHandle.y - s.y, 7 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = '#e74c3c'; ctx.fill(); ctx.stroke();
+        }
+
+        ctx.restore();
+    });
+
+    // Aktives Aufziehen in Echtzeit
+    if (activeSprinklerDrag) {
+        ctx.save();
+        ctx.translate(activeSprinklerDrag.startX, activeSprinklerDrag.startY);
+        const radiusPx = Math.hypot(activeSprinklerDrag.currentX - activeSprinklerDrag.startX, activeSprinklerDrag.currentY - activeSprinklerDrag.startY);
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, radiusPx, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+// 4. UI & Tool-Aktivierung
+function activateRegnerTool() {
+    activeTool = 'place-sprinkler';
     const manufacturers = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
     const productFamilies = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
     const allGehaeuse = irrigationCatalog.filter(i => i.art === "Aufsteiger");
@@ -90,29 +160,19 @@ function activateRegnerTool() {
         modal.innerHTML = `
             <div class="modal-card" style="min-width: 440px;">
                 <h2>🎯 Regner & Hersteller wählen</h2>
-                <p>Wählen Sie den Hersteller und die Produktfamilie. Der genaue Regner (MP1000, MP2000 etc.), Radius und Sektor werden beim Aufziehen auf dem Plan vollautomatisch ermittelt:</p>
-                
+                <p>Wählen Sie Hersteller und Produktfamilie. Radius und Sektor werden beim Aufziehen automatisch ermittelt:</p>
                 <div class="input-group" style="margin-bottom: 12px;">
                     <label>Hersteller / Marke</label>
-                    <select id="regner-manufacturer-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
-                        <!-- Wird dynamisch gefüllt -->
-                    </select>
+                    <select id="regner-manufacturer-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;"></select>
                 </div>
-
                 <div class="input-group" style="margin-bottom: 12px;">
                     <label>Produktfamilie</label>
-                    <select id="regner-family-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
-                        <!-- Wird dynamisch gefüllt -->
-                    </select>
+                    <select id="regner-family-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;"></select>
                 </div>
-
                 <div class="input-group" style="margin-bottom: 15px;">
-                    <label>Bevorzugtes Gehäuse / Aufsteiger (Vater-Teil)</label>
-                    <select id="regner-parent-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
-                        <!-- Wird dynamisch gefüllt -->
-                    </select>
+                    <label>Bevorzugtes Gehäuse / Aufsteiger</label>
+                    <select id="regner-parent-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;"></select>
                 </div>
-
                 <div class="button-row" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn-back" onclick="closeRegnerModal()" style="padding: 10px 18px; background: #1f293d; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Abbrechen</button>
                     <button class="btn-submit" onclick="confirmRegnerFamilySelection()" style="padding: 10px 18px; background: var(--accent-green, #10b981); color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">Platzieren starten</button>
@@ -125,28 +185,20 @@ function activateRegnerTool() {
     document.getElementById('regner-manufacturer-select').innerHTML = manufacturers.map(m => `<option value="${m}">${m}</option>`).join('');
     document.getElementById('regner-family-select').innerHTML = productFamilies.map(f => `<option value="${f}">${f}</option>`).join('');
     document.getElementById('regner-parent-select').innerHTML = allGehaeuse.map(g => `<option value="${g.artNr}">${g.bez} (${g.hersteller})</option>`).join('');
-
     modal.classList.remove('hidden');
 }
 
 function closeRegnerModal() {
-    const modal = document.getElementById('modal-regner-selection');
-    if (modal) modal.classList.add('hidden');
+    document.getElementById('modal-regner-selection')?.classList.add('hidden');
 }
 
 function confirmRegnerFamilySelection() {
-    const selectedManufacturer = document.getElementById('regner-manufacturer-select').value;
-    const selectedFamily = document.getElementById('regner-family-select').value;
-    const selectedParentArtNr = document.getElementById('regner-parent-select').value;
-    
-    closeRegnerModal();
-
-    activeTool = 'place-sprinkler';
     window.activeSprinklerConfig = {
-        manufacturer: selectedManufacturer,
-        family: selectedFamily,
-        parentArtNr: selectedParentArtNr
+        manufacturer: document.getElementById('regner-manufacturer-select').value,
+        family: document.getElementById('regner-family-select').value,
+        parentArtNr: document.getElementById('regner-parent-select').value
     };
-
-    alert(`Bereit zum Zeichnen:\n• Hersteller: ${selectedManufacturer}\n• Familie: ${selectedFamily}\n\nZiehen Sie jetzt den Kreis auf dem Plan auf – Radius und Winkel bestimmen den exakten Regner automatisch!`);
+    closeRegnerModal();
+    activeTool = 'place-sprinkler';
+    alert("Bereit zum Zeichnen: Ziehen Sie den Regner auf dem Plan auf!");
 }
