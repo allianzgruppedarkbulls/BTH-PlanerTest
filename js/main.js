@@ -1,8 +1,103 @@
-// js/main.js - Korrigierter Event-Listener-Bereich
+// js/main.js - Vollständige, korrigierte Version ohne weggelassene Teile
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+// Viewport Panning (Verschieben des Plans)
+viewport.addEventListener('mousedown', (e) => {
+    if (e.button === 0 && !activeTool) {
+        isDragging = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+    }
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        redrawCanvas();
+        return;
+    }
+
+    // Live-Update beim Aufziehen des Regners auf dem Canvas
+    if (typeof activeSprinklerDrag !== 'undefined' && activeSprinklerDrag) {
+        const rect = canvas.getBoundingClientRect();
+        activeSprinklerDrag.currentX = (e.clientX - rect.left - panX) / zoom;
+        activeSprinklerDrag.currentY = (e.clientY - rect.top - panY) / zoom;
+        redrawCanvas();
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    isDragging = false;
+
+    // Regner-Zeichnen finalisieren, wenn die Maustaste losgelassen wird
+    if (typeof activeSprinklerDrag !== 'undefined' && activeSprinklerDrag && activeTool === 'place-sprinkler') {
+        const rect = canvas.getBoundingClientRect();
+        const endX = (e.clientX - rect.left - panX) / zoom;
+        const endY = (e.clientY - rect.top - panY) / zoom;
+
+        // Radius in Pixeln berechnen und in Meter umrechnen
+        const radiusPx = Math.hypot(endX - activeSprinklerDrag.startX, endY - activeSprinklerDrag.startY);
+        const radiusMeters = radiusPx / pixelsPerMeter;
+        const angleDeg = 360; // Standardmäßig Vollkreis
+
+        const config = window.activeSprinklerConfig;
+        if (config && typeof resolveSprinklerFromCanvas === 'function') {
+            const resolvedData = resolveSprinklerFromCanvas(
+                config.manufacturer, 
+                config.family, 
+                radiusMeters, 
+                angleDeg, 
+                config.parentArtNr
+            );
+
+            if (resolvedData) {
+                if (typeof sprinklers === 'undefined') {
+                    window.sprinklers = [];
+                }
+                sprinklers.push({
+                    id: 'sprinkler_' + Date.now(),
+                    x: activeSprinklerDrag.startX,
+                    y: activeSprinklerDrag.startY,
+                    radiusPx: radiusPx,
+                    radiusMeters: radiusMeters.toFixed(2),
+                    angleDeg: angleDeg,
+                    resolvedData: resolvedData
+                });
+
+                console.log("Regner erfolgreich platziert:", resolvedData);
+            } else {
+                alert("Kein passendes Modell im Katalog für diesen Radius gefunden!");
+            }
+        }
+
+        activeSprinklerDrag = null;
+        activeTool = null;
+        redrawCanvas();
+    }
+});
+
+// Viewport Zoom per Mausrad
+viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomIntensity = 0.1;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const prevZoom = zoom;
+    zoom = e.deltaY < 0 ? zoom * (1 + zoomIntensity) : zoom / (1 + zoomIntensity);
+    zoom = Math.max(0.01, Math.min(30.0, zoom));
+
+    panX = mouseX - (mouseX - panX) * (zoom / prevZoom);
+    panY = mouseY - (mouseY - panY) * (zoom / prevZoom);
+
+    redrawCanvas();
+}, { passive: false });
+
 canvas.addEventListener('mousedown', function(e) {
+    if (isDragging) return;
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left - panX) / zoom;
     const y = (e.clientY - rect.top - panY) / zoom;
@@ -22,15 +117,7 @@ canvas.addEventListener('mousedown', function(e) {
         return;
     }
 
-    // Canvas verschieben (Panning), wenn kein Werkzeug aktiv ist
-    if (e.button === 0 && !activeTool) {
-        isDragging = true;
-        startX = e.clientX - panX;
-        startY = e.clientY - panY;
-        return;
-    }
-
-    // 1. Prüfen, ob auf eine bereits bestehende Wasserquelle geklickt wurde
+    // 1. Prüfen, ob auf eine bereits bestehende Wasserquelle geklickt wurde (zum Bearbeiten / Eimertest nachragen)
     let clickedWater = typeof waterSources !== 'undefined' ? waterSources.find(s => Math.hypot(s.x - x, s.y - y) < 20 / zoom) : null;
     if (clickedWater) {
         openWaterModal(clickedWater.id);
@@ -110,3 +197,42 @@ canvas.addEventListener('mousedown', function(e) {
         }
     }
 });
+
+function setWorkflowStep(step) {
+    currentStep = step;
+    document.getElementById('step1-status').innerText = step === 1 ? 'Aktiv' : '✔ Erledigt';
+    document.getElementById('step2-status').innerText = step === 2 ? 'Aktiv' : (step > 2 ? '✔ Erledigt' : '🔒 Gesperrt');
+    toggleGroupLock('group-step2', step !== 2);
+    document.getElementById('btn-goto-step3').style.display = step === 2 ? 'block' : 'none';
+}
+
+function toggleGroupLock(groupId, lock) {
+    document.getElementById(groupId).querySelectorAll('.tool-btn').forEach(btn => {
+        lock ? btn.classList.add('locked') : btn.classList.remove('locked');
+    });
+}
+
+function toggleAdminMode() {
+    isAdmin = !isAdmin;
+    document.getElementById('header-badge').innerText = isAdmin ? "Profi-Modus (Admin)" : "Privatkunden-Modus";
+    document.getElementById('mode-indicator').innerText = isAdmin ? "Profi (Admin)" : "Privatkunde";
+    document.getElementById('step3-status').innerText = isAdmin ? "Aktiv" : "🔒 GESPERRT";
+    document.getElementById('step3-status').style.color = isAdmin ? "var(--accent-green)" : "var(--accent-red)";
+    document.getElementById('group-step3').querySelectorAll('.tool-btn').forEach(btn => {
+        isAdmin ? btn.classList.remove('locked') : btn.classList.add('locked');
+    });
+}
+
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function showGenericModal(title, text) {
+    document.getElementById('generic-modal-title').innerText = title;
+    document.getElementById('generic-modal-desc').innerText = text;
+    document.getElementById('modal-generic').classList.remove('hidden');
+}
+function closeAllModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+function handleProAction(name) {
+    if (!isAdmin) { alert("🔒 Nur für Administratoren!"); return; }
+    showGenericModal("Profi-Modus", `Aktion gestartet: ${name}`);
+}
+
+centerCanvas();
