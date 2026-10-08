@@ -37,8 +37,14 @@ window.addEventListener('mouseup', (e) => {
         const endX = (e.clientX - rect.left - panX) / zoom;
         const endY = (e.clientY - rect.top - panY) / zoom;
 
-        // Radius in Pixeln berechnen und in Meter umrechnen
-        const radiusPx = Math.hypot(endX - activeSprinklerDrag.startX, endY - activeSprinklerDrag.startY);
+        // Radius in Pixeln berechnen
+        let radiusPx = Math.hypot(endX - activeSprinklerDrag.startX, endY - activeSprinklerDrag.startY);
+        
+        // FIX: Falls nur geklickt statt gezogen wurde (Radius nahe 0), Standard-Radius von 5 Metern setzen!
+        if (radiusPx < 15) {
+            radiusPx = 5 * pixelsPerMeter;
+        }
+
         const radiusMeters = radiusPx / pixelsPerMeter;
         const angleDeg = 360; // Standardmäßig Vollkreis
 
