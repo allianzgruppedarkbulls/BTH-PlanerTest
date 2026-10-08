@@ -1,3 +1,5 @@
+// js/main.js - Vollständige, integrierte Version
+
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 viewport.addEventListener('mousedown', (e) => {
@@ -13,10 +15,67 @@ window.addEventListener('mousemove', (e) => {
         panX = e.clientX - startX;
         panY = e.clientY - startY;
         redrawCanvas();
+        return;
+    }
+
+    // Live-Update beim Aufziehen des Regners auf dem Canvas
+    if (typeof activeSprinklerDrag !== 'undefined' && activeSprinklerDrag) {
+        const rect = canvas.getBoundingClientRect();
+        activeSprinklerDrag.currentX = (e.clientX - rect.left - panX) / zoom;
+        activeSprinklerDrag.currentY = (e.clientY - rect.top - panY) / zoom;
+        redrawCanvas();
     }
 });
 
-window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mouseup', (e) => {
+    isDragging = false;
+
+    // Regner-Zeichnen finalisieren, wenn die Maustaste losgelassen wird
+    if (typeof activeSprinklerDrag !== 'undefined' && activeSprinklerDrag && activeTool === 'place-sprinkler') {
+        const rect = canvas.getBoundingClientRect();
+        const endX = (e.clientX - rect.left - panX) / zoom;
+        const endY = (e.clientY - rect.top - panY) / zoom;
+
+        // Radius in Pixeln berechnen und in Meter umrechnen
+        const radiusPx = Math.hypot(endX - activeSprinklerDrag.startX, endY - activeSprinklerDrag.startY);
+        const radiusMeters = radiusPx / pixelsPerMeter;
+        const angleDeg = 360; // Standardmäßig Vollkreis
+
+        const config = window.activeSprinklerConfig;
+        if (config && typeof resolveSprinklerFromCanvas === 'function') {
+            const resolvedData = resolveSprinklerFromCanvas(
+                config.manufacturer, 
+                config.family, 
+                radiusMeters, 
+                angleDeg, 
+                config.parentArtNr
+            );
+
+            if (resolvedData) {
+                if (typeof sprinklers === 'undefined') {
+                    window.sprinklers = [];
+                }
+                sprinklers.push({
+                    id: 'sprinkler_' + Date.now(),
+                    x: activeSprinklerDrag.startX,
+                    y: activeSprinklerDrag.startY,
+                    radiusPx: radiusPx,
+                    radiusMeters: radiusMeters.toFixed(2),
+                    angleDeg: angleDeg,
+                    resolvedData: resolvedData
+                });
+
+                console.log("Regner erfolgreich platziert:", resolvedData);
+            } else {
+                alert("Kein passendes Modell im Katalog für diesen Radius gefunden!");
+            }
+        }
+
+        activeSprinklerDrag = null;
+        activeTool = null;
+        redrawCanvas();
+    }
+});
 
 viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -40,6 +99,17 @@ canvas.addEventListener('mousedown', function(e) {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left - panX) / zoom;
     const y = (e.clientY - rect.top - panY) / zoom;
+
+    // 0. Wenn das Regner-Werkzeug aktiv ist -> Startpunkt für das Aufziehen setzen
+    if (activeTool === 'place-sprinkler' && window.activeSprinklerConfig) {
+        window.activeSprinklerDrag = {
+            startX: x,
+            startY: y,
+            currentX: x,
+            currentY: y
+        };
+        return;
+    }
 
     // 1. Prüfen, ob auf eine bereits bestehende Wasserquelle geklickt wurde (zum Bearbeiten / Eimertest nachragen)
     let clickedWater = typeof waterSources !== 'undefined' ? waterSources.find(s => Math.hypot(s.x - x, s.y - y) < 20 / zoom) : null;
