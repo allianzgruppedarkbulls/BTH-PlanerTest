@@ -30,14 +30,17 @@ const irrigationCatalog = [
     { art: "Aufsteiger", hersteller: "Rain Bird", bez: "Gehäuse 1804-SAM (10 cm / 1/2\" IG - Universal)", wMin: 0, wMax: 0, winkelMin: 0, winkelMax: 0, artNr: "RB1804", eltern: [] }
 ];
 
-// Sicherstellen, dass sprinklers nur einmal global referenziert wird
-if (typeof window.sprinklers === 'undefined') {
+// Global absichern, damit es keine Mehrfachdeklaration gibt
+if (!window.sprinklers) {
     window.sprinklers = [];
 }
-let sprinklers = window.sprinklers;
 
-let activeSprinklerDrag = null;
-let selectedSprinkler = null;
+if (typeof activeSprinklerDrag === 'undefined') {
+    var activeSprinklerDrag = null;
+}
+if (typeof selectedSprinkler === 'undefined') {
+    var selectedSprinkler = null;
+}
 
 // 1. Katalog-Auflösung (mit Sortierung nach kleinstem Radius & Winkel)
 function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRadiusMeters, targetAngleDeg, selectedParentArtNr) {
@@ -83,9 +86,9 @@ function getSprinklerHandles(s) {
 
 // 3. Modul-Renderfunktion (wird direkt vom Canvas-Engine aufgerufen)
 function drawSprinklersModule(ctx, zoom) {
-    if (typeof sprinklers === 'undefined') return;
+    if (!window.sprinklers) return;
 
-    sprinklers.forEach(s => {
+    window.sprinklers.forEach(s => {
         ctx.save();
         ctx.translate(s.x, s.y);
 
