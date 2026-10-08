@@ -1,3 +1,7 @@
+// Globale Liste aller platzierten Regner auf dem Canvas
+let sprinklers = [];
+let activeSprinklerDrag = null; // Speichert den Startpunkt während des Aufziehens
+
 function centerCanvas() {
     panX = (viewport.clientWidth - canvas.width) / 2;
     panY = (viewport.clientHeight - canvas.height) / 2;
@@ -59,7 +63,6 @@ function redrawCanvas() {
             ctx.lineWidth = 2 / zoom;
             ctx.stroke();
 
-            // Eckpunkte der fertigen Form sichtbar machen
             shape.points.forEach(pt => {
                 ctx.fillStyle = '#ffffff';
                 ctx.strokeStyle = '#38bdf8';
@@ -78,7 +81,6 @@ function redrawCanvas() {
             ctx.save();
             ctx.translate(source.x, source.y);
 
-            // Äußerer Kreis / Icon-Hintergrund
             ctx.beginPath();
             ctx.arc(0, 0, 16 / zoom, 0, Math.PI * 2);
             ctx.fillStyle = source.sourceType === 'cistern' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.4)';
@@ -87,14 +89,12 @@ function redrawCanvas() {
             ctx.strokeStyle = source.sourceType === 'cistern' ? '#38bdf8' : '#0284c7';
             ctx.stroke();
 
-            // Symbol / Text
             ctx.font = `${12 / zoom}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(source.sourceType === 'cistern' ? '💧Z' : '🚰', 0, 0);
 
-            // Status-Badge direkt am Objekt (Warnung, wenn Eimertest fehlt)
             if (!source.flowTestDone) {
                 ctx.beginPath();
                 ctx.arc(10 / zoom, -10 / zoom, 5 / zoom, 0, Math.PI * 2);
@@ -107,6 +107,66 @@ function redrawCanvas() {
 
             ctx.restore();
         });
+    }
+
+    // 2.5: Bereits platzierte Regner auf dem Canvas zeichnen
+    if (typeof sprinklers !== 'undefined') {
+        sprinklers.forEach(s => {
+            ctx.save();
+            ctx.translate(s.x, s.y);
+
+            // Wurfweiten-Kreis / Sektor anzeigen
+            ctx.beginPath();
+            ctx.arc(0, 0, s.radiusPx, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5 / zoom;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+
+            // Regner-Mittelpunkt (Sprinkler-Kopf)
+            ctx.beginPath();
+            ctx.arc(0, 0, 6 / zoom, 0, Math.PI * 2);
+            ctx.fillStyle = '#10b981';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2 / zoom;
+            ctx.stroke();
+
+            // Beschriftung (Modell + Gehäuse)
+            ctx.font = `${10 / zoom}px sans-serif`;
+            ctx.fillStyle = '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.fillText(s.resolvedData.sprinkler.bez, 0, -12 / zoom);
+
+            ctx.restore();
+        });
+    }
+
+    // 2.6: Aktives Aufziehen eines Regners in Echtzeit
+    if (activeSprinklerDrag) {
+        ctx.save();
+        ctx.translate(activeSprinklerDrag.startX, activeSprinklerDrag.startY);
+
+        const radiusPx = Math.hypot(activeSprinklerDrag.currentX - activeSprinklerDrag.startX, activeSprinklerDrag.currentY - activeSprinklerDrag.startY);
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, radiusPx, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 6 / zoom, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     // 3. Aktiver Zeichenpfad
