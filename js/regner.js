@@ -66,13 +66,96 @@ function getParentPartsForSprinkler(sprinklerArtNr) {
     }).filter(p => p !== undefined);
 }
 
-// 4. Integrations-Hook / UI-Steuerung für den Regner-Button
+// 4. Dynamisches Auswahl-UI für den Regner-Button (Automatische Dropdowns aus dem Katalog)
 function activateRegnerTool() {
-    console.log("Regner-Modul aktiv. Katalog-Länge:", irrigationCatalog.length);
-    
-    const rotatoren = findMatchingSprinklers("Rotationsregner", null, null);
-    
-    if (typeof showGenericModal === 'function') {
-        showGenericModal('MP Rotator Auswahl', `Katalog erfolgreich geladen: ${rotatoren.length} Regner-Modelle und Gehäuse-Zuordnungen bereit.`);
+    console.log("Regner-Modul aktiv. Generiere Auswahldialog...");
+
+    // Einzigartige Typen (art) und Hersteller aus dem Katalog extrahieren (ohne Aufsteiger)
+    const availableTypes = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
+    const availableBrands = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
+
+    // Prüfen, ob bereits ein Regner-Modal existiert, sonst erstellen
+    let modal = document.getElementById('modal-regner-selection');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-regner-selection';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-card" style="min-width: 400px;">
+                <h2>🎯 Regner-Auswahl & Konfiguration</h2>
+                <p>Wählen Sie die Komponenten aus dem aktiven Katalog:</p>
+                
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label>Regner-Art</label>
+                    <select id="regner-type-select" style="width: 100%; padding: 8px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 4px;" onchange="updateRegnerModelDropdown()">
+                        <!-- Wird dynamisch gefüllt -->
+                    </select>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label>Hersteller / Marke</label>
+                    <select id="regner-brand-select" style="width: 100%; padding: 8px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 4px;">
+                        <!-- Wird dynamisch gefüllt -->
+                    </select>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label>Modell / bez</label>
+                    <select id="regner-model-select" style="width: 100%; padding: 8px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 4px;">
+                        <!-- Wird dynamisch nach Typ gefüllt -->
+                    </select>
+                </div>
+
+                <div class="button-row" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn-back" onclick="closeRegnerModal()" style="padding: 8px 16px; background: #1f293d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Abbrechen</button>
+                    <button class="btn-submit" onclick="applySelectedRegner()" style="padding: 8px 16px; background: var(--accent-green, #10b981); color: #000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Regner übernehmen</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
+
+    // Dropdowns befüllen
+    const typeSelect = document.getElementById('regner-type-select');
+    typeSelect.innerHTML = availableTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+
+    const brandSelect = document.getElementById('regner-brand-select');
+    brandSelect.innerHTML = availableBrands.map(b => `<option value="${b}">${b}</option>`).join('');
+
+    updateRegnerModelDropdown();
+
+    // Modal anzeigen
+    modal.classList.remove('hidden');
+}
+
+// Hilfsfunktion: Modelle basierend auf gewählter Art aktualisieren
+function updateRegnerModelDropdown() {
+    const selectedType = document.getElementById('regner-type-select').value;
+    const modelSelect = document.getElementById('regner-model-select');
+    
+    const matchingModels = irrigationCatalog.filter(i => i.art === selectedType);
+    modelSelect.innerHTML = matchingModels.map(m => `<option value="${m.artNr}">${m.bez} (max. ${m.wMax}m)</option>`).join('');
+}
+
+// Modal schließen
+function closeRegnerModal() {
+    const modal = document.getElementById('modal-regner-selection');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Auswahl bestätigen und in die Planung übernehmen
+function applySelectedRegner() {
+    const modelArtNr = document.getElementById('regner-model-select').value;
+    const selectedSprinkler = irrigationCatalog.find(i => i.artNr === modelArtNr);
+    
+    if (selectedSprinkler) {
+        console.log("Ausgewählter Regner:", selectedSprinkler);
+        // Hier werden später Gehäuse (Elternteile) automatisch aufgelöst
+        const parentGehaeuse = getParentPartsForSprinkler(modelArtNr);
+        console.log("Automatisch zugeordnete Gehäuse (Eltern):", parentGehaeuse);
+
+        alert(`Erfolgreich gewählt: ${selectedSprinkler.bez}\nInklusive ${parentGehaeuse.length} passender Gehäuse-Optionen für die Stückliste!`);
+    }
+    
+    closeRegnerModal();
 }
