@@ -42,4 +42,111 @@ function resolveSprinklerFromCanvas(targetManufacturer, productFamily, targetRad
     if (familyItems.length === 0) return null;
 
     let suitableMatches = familyItems.filter(item => {
-        const matchesAngle = (targetAngleDeg >= item.winkelMin && targetAngleDeg <= item.winkelMax) || (item.winkelMin === 360 &&
+        const matchesAngle = (targetAngleDeg >= item.winkelMin && targetAngleDeg <= item.winkelMax) || (item.winkelMin === 360 && targetAngleDeg === 360);
+        const matchesRadius = item.wMax >= targetRadiusMeters;
+        return matchesRadius && matchesAngle;
+    });
+
+    if (suitableMatches.length === 0) {
+        familyItems.sort((a, b) => b.wMax - b.wMax);
+        suitableMatches = [familyItems[0]];
+    } else {
+        // Optimierte Sortierung: Primär nach kleinstem Radius (wMax), sekundär nach kleinstem Startwinkel (winkelMin)
+        suitableMatches.sort((a, b) => {
+            if (a.wMax !== b.wMax) return a.wMax - b.wMax;
+            return a.winkelMin - b.winkelMin;
+        });
+    }
+
+    const selectedSprinkler = suitableMatches[0];
+
+    // Gewähltes Vater-Teil (Gehäuse) zuordnen (falls vorhanden)
+    const parentGehaeuse = irrigationCatalog.find(p => p.artNr === selectedParentArtNr) || 
+                           irrigationCatalog.find(p => p.artNr === selectedSprinkler.eltern[0]);
+
+    return {
+        sprinkler: selectedSprinkler,
+        gehaeuse: parentGehaeuse
+    };
+}
+
+// 3. UI-Integration: Auswahldialog mit Hersteller, Produktfamilie und flexibler Gehäusewahl
+function activateRegnerTool() {
+    console.log("Regner-Modul aktiv (Mit Hersteller- und Familienwahl).");
+    
+    // WICHTIG: Hier muss das Tool global aktiviert werden, damit der Canvas-Listener anspringt!
+    activeTool = 'place-sprinkler';
+
+    // Rest deiner Logik für das Modal / die Auswahl...
+    const manufacturers = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.hersteller))];
+    const productFamilies = [...new Set(irrigationCatalog.filter(i => i.art !== "Aufsteiger").map(i => i.art))];
+    const allGehaeuse = irrigationCatalog.filter(i => i.art === "Aufsteiger");
+
+    let modal = document.getElementById('modal-regner-selection');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-regner-selection';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-card" style="min-width: 440px;">
+                <h2>🎯 Regner & Hersteller wählen</h2>
+                <p>Wählen Sie den Hersteller und die Produktfamilie. Der genaue Regner (MP1000, MP2000 etc.), Radius und Sektor werden beim Aufziehen auf dem Plan vollautomatisch ermittelt:</p>
+                
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label>Hersteller / Marke</label>
+                    <select id="regner-manufacturer-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                        <!-- Wird dynamisch gefüllt -->
+                    </select>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label>Produktfamilie</label>
+                    <select id="regner-family-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                        <!-- Wird dynamisch gefüllt -->
+                    </select>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>Bevorzugtes Gehäuse / Aufsteiger (Vater-Teil)</label>
+                    <select id="regner-parent-select" style="width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                        <!-- Wird dynamisch gefüllt -->
+                    </select>
+                </div>
+
+                <div class="button-row" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn-back" onclick="closeRegnerModal()" style="padding: 10px 18px; background: #1f293d; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Abbrechen</button>
+                    <button class="btn-submit" onclick="confirmRegnerFamilySelection()" style="padding: 10px 18px; background: var(--accent-green, #10b981); color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">Platzieren starten</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById('regner-manufacturer-select').innerHTML = manufacturers.map(m => `<option value="${m}">${m}</option>`).join('');
+    document.getElementById('regner-family-select').innerHTML = productFamilies.map(f => `<option value="${f}">${f}</option>`).join('');
+    document.getElementById('regner-parent-select').innerHTML = allGehaeuse.map(g => `<option value="${g.artNr}">${g.bez} (${g.hersteller})</option>`).join('');
+
+    modal.classList.remove('hidden');
+}
+
+function closeRegnerModal() {
+    const modal = document.getElementById('modal-regner-selection');
+    if (modal) modal.classList.add('hidden');
+}
+
+function confirmRegnerFamilySelection() {
+    const selectedManufacturer = document.getElementById('regner-manufacturer-select').value;
+    const selectedFamily = document.getElementById('regner-family-select').value;
+    const selectedParentArtNr = document.getElementById('regner-parent-select').value;
+    
+    closeRegnerModal();
+
+    activeTool = 'place-sprinkler';
+    window.activeSprinklerConfig = {
+        manufacturer: selectedManufacturer,
+        family: selectedFamily,
+        parentArtNr: selectedParentArtNr
+    };
+
+    alert(`Bereit zum Zeichnen:\n• Hersteller: ${selectedManufacturer}\n• Familie: ${selectedFamily}\n\nZiehen Sie jetzt den Kreis auf dem Plan auf – Radius und Winkel bestimmen den exakten Regner automatisch!`);
+}
